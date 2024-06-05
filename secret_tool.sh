@@ -29,6 +29,12 @@ declare -A command_from_package=(
   ['yq']='yq'
 )
 
+## 100% opinionated JSON only:
+allowed_boolean_regexp='^(true|false)$'
+
+## All that YAML supports (https://yaml.org/type/bool.html):
+# allowed_boolean_regexp='^(y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$'
+
 [[ "$*" == *"--help"* ]] && SHOW_HELP=1
 
 SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
@@ -49,7 +55,7 @@ fi
 
 if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
   echo "[ERROR] Secret map file not found: $SECRET_MAP"
-  echo "[INFO] Change path"
+  echo "[INFO] Please, change path or submit correct value via a SECRET_MAP variable"
   exit 1
 fi
 
@@ -81,7 +87,7 @@ fi
 for target_profile in $target_environments; do
   # verify that target profile exists
   if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" $SECRET_MAP | wc -l | grep "0" &> /dev/null; then
-    echo "[ERROR] Profile validation failed: '${target_profile}' was not found"
+    echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
     FAILED=1
   fi
 done
@@ -128,12 +134,16 @@ for target_profile in $target_environments; do
   # uncomment next line for debugging
   # echo "All env variables: ${env_variables[@]}"
 
+  SECRET_MAP_RELEASE_ISO=$(git log -1 --pretty="format:%cI (commit %H)" $SECRET_MAP 2> /dev/null || date +'%Y-%m-%d at %H:%M:%S%:z (not from git)' -r $SECRET_MAP)
+  SECRET_MAP_RELEASE=${SECRET_MAP_RELEASE_ISO/T/ at }
 
   # headers
-  echo "# File: ${output_file_path}" > $output_file_path # maybe $(basename $output_file_path) ?
-  echo '# Content type: environment variables and secrets' >> $output_file_path
-  echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path
+  echo '# Content type: environment variables and secrets' > $output_file_path
+  echo "# File path: $(realpath $output_file_path)" >> $output_file_path
+  echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path
   echo "# Profile: ${target_profile}" >> $output_file_path
+  echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path
+  echo "# Secret map release: $SECRET_MAP_RELEASE" >> $output_file_path
   echo '' >> $output_file_path
 
 
@@ -153,10 +163,11 @@ for target_profile in $target_environments; do
 
     # if we are including blank values, write those to file
     if [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
-      re='^[0-9]+$'
-      if ! [[ $var_value =~ $re ]]; then
+      re_num='^[0-9]+$'
+      re_yaml_bool=$allowed_boolean_regexp
+      if ! [[ $var_value =~ $re_num ]] && ! [[ $var_value =~ $re_yaml_bool ]]; then
+        # the strings that are not numbers or booleans are quoted
         if [[ $var_value = *\$* ]]; then
-          # if value contains $, surround with double quotes
           var_value="\"${var_value}\""
         else
           # else surround non-numeric values with single quotes

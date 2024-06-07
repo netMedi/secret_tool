@@ -60,7 +60,7 @@ if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
 fi
 
 if [[ "$*" == *"--profiles"* ]]; then
-  yq e ".profiles | keys | .[]" $SECRET_MAP | tail -n +1
+  yq e ".profiles | keys | .[]" $SECRET_MAP | tail -n +1 | grep -v '^--'
   exit 0
 fi
 
@@ -107,7 +107,7 @@ function duplicates_check {
 }
 
 # block of overridable defaults
-readarray env_variables_defaults < <( yq -r ".profiles.base | to_entries | .[] | .key" $SECRET_MAP )
+readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
 duplicates_check "${env_variables_defaults[@]}"
 
 for target_profile in $target_environments; do

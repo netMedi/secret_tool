@@ -81,6 +81,9 @@ else
   # will also trigger if dev is using 1password-cli without gui
   if ! pgrep 1password &> /dev/null; then
     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+  else
+    # fallback for if 1password UI does not pop up password prompt
+    eval $(op signin) 
   fi
 fi
 

@@ -83,7 +83,8 @@ else
     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
   else
     # signin manually if 1password GUI is a Flatpak app
-    op whoami 2> /dev/null &> /dev/null || eval $(op signin) 
+    op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
+    echo '[INFO] Extracting values...'
   fi
 fi
 

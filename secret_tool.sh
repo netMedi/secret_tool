@@ -82,8 +82,8 @@ else
   if ! pgrep 1password &> /dev/null; then
     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
   else
-    # fallback for if 1password UI does not pop up password prompt
-    eval $(op signin) 
+    # signin manually if 1password GUI is a Flatpak app
+    op whoami 2> /dev/null &> /dev/null || eval $(op signin) 
   fi
 fi
 

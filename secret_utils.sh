@@ -93,6 +93,6 @@ case $routine in
 
   *)
     ### help
-    cat "$actual_path" | head -n $HELP_LINES | tail -n +3 | head -n -2
+    cat "$actual_path" | head -n $HELP_LINES | tail -n +3 | sed '$d' | sed '$d'
     ;;
 esac

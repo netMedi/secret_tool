@@ -21,13 +21,35 @@
 '
 HELP_LINES=${LINENO} # all lines above this one are considered help text
 
+actual_path=$(readlink -f "${BASH_SOURCE[0]}")
+script_dir=$(dirname "$actual_path")
+
+if [ "$1" = "--test" ]; then
+  if [ -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh test || exit 1
+  exit 0
+fi
+
+if [ "$1" = "--update" ]; then
+  if [ -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh update || exit 1
+  exit 0
+fi
+
+# BASH 4+ required, skip for now
 # Prerequisites:
-declare -A command_from_package=(
-  ['1password']='1password'
-  ['op']='1password-cli'
-  ['bash']='bash'
-  ['yq']='yq'
-)
+# declare -A command_from_package=(
+#   ['1password']='1password'
+#   ['op']='1password-cli'
+#   ['bash']='bash'
+#   ['yq']='yq'
+# )
 
 ## 100% opinionated JSON only:
 allowed_boolean_regexp='^(true|false)$'
@@ -71,13 +93,15 @@ fi
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
   export SKIP_OP_USE=1
 else
+  # BASH 4+ required, skip for now
   # verify installed packages via command presence
-  for cmnd in ${!command_from_package[@]}; do
-    if ! command -v $cmnd &> /dev/null; then
-      echo "[ERROR] '${command_from_package[${cmnd}]}' is required but not installed. Aborting..."
-      exit 1
-    fi
-  done
+  # for cmnd in ${!command_from_package[@]}; do
+  #   if ! command -v $cmnd &> /dev/null; then
+  #     echo "[ERROR] '${command_from_package[${cmnd}]}' is required but not installed. Aborting..."
+  #     exit 1
+  #   fi
+  # done
+
   # will also trigger if dev is using 1password-cli without gui
   if ! pgrep 1password &> /dev/null; then
     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
@@ -97,16 +121,29 @@ for target_profile in $target_environments; do
 done
 [ "$FAILED" = "1" ] && exit 1
 
+# BASH 4+ required, skip for now
 # ensure blocks have 1 instance of each key
+# function duplicates_check {
+#   input_array=("$@")
+#   declare -A detected_instances
+#   for i in "${input_array[@]}"; do
+#     if [[ -n ${detected_instances["$i"]} ]]; then # avoid duplicates (from defaults)
+#       echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${i}"
+#       exit 1
+#     fi
+#     detected_instances["$i"]=1
+#   done
+# }
+
 function duplicates_check {
   input_array=("$@")
-  declare -A detected_instances
-  for i in "${input_array[@]}"; do
-    if [[ -n ${detected_instances["$i"]} ]]; then # avoid duplicates (from defaults)
-      echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${i}"
-      exit 1
-    fi
-    detected_instances["$i"]=1
+  for ((i=0; i<${#input_array[@]}; i++)); do
+    for ((j=i+1; j<${#input_array[@]}; j++)); do
+      if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
+        echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${input_array[i]}"
+        exit 1
+      fi
+    done
   done
 }
 
@@ -124,13 +161,13 @@ for target_profile in $target_environments; do
 
   # list of all env variables sorted alphabetically
   env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
-  declare -A skip_vars=(['<<']=1)
+  # declare -A skip_vars=(['<<']=1)
   clean_env=()
   for i in "${env_variables[@]}"; do
-    if [[ -z ${skip_vars["$i"]} ]]; then
+    if ! [ "$i" = '<<' ]; then
       clean_env+=("$i")
     fi
-    skip_vars["$i"]=1
+    # skip_vars["$i"]=1
   done
   readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
 

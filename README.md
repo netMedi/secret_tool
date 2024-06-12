@@ -12,7 +12,7 @@ Hard:
   - [1password-cli (for handling SECRETS)](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
 
 Soft:
-  - dotenvx (for wrapping commands and self-test)
+  - dotenvx (for wrapping commands only)
   - git (for updates)
 
 

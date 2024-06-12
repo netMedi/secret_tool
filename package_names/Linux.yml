@@ -1,0 +1,6 @@
+command_and_package:
+  1password: 1password
+  git: git
+  op: 1password-cli
+  bash: bash
+  yq: yq

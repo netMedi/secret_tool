@@ -106,7 +106,7 @@ fi
 
 if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
   echo "[ERROR] Secret map file not found: $SECRET_MAP"
-  echo "[INFO] Please, change path or submit correct value via a SECRET_MAP variable"
+  echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
   exit 1
 fi
 
@@ -175,6 +175,29 @@ function duplicates_check {
     done
   done
 }
+
+if ! type -t readarray >/dev/null; then
+  readarray() {
+    local cmd opt v=MAPFILE
+    while [ -n "$1" ]; do
+      case "$1" in
+        -r) shift; opt="$opt -r"; ;;
+        -t) shift; t=1; ;;
+        -u) shift; if [ -n "$1" ]; then opt="$opt -u $1"; shift; fi ;;
+        *) if [[ "$1" =~ ^[A-Za-z_]+$ ]]; then v="$1"; shift; else
+            echo -en "Error: Unknown option: '$1'\n" 1>&2
+            exit
+          fi ;;
+      esac
+    done
+    cmd="read $opt"
+    eval "$v=()"
+    while IFS= eval "$cmd line"; do
+      line=$(echo "$line" | sed -e "s#\\([\"\\`]\\)#\\\\\\1#g")
+      eval "${v}+=(\"$line\")"
+    done
+  }
+fi
 
 # block of overridable defaults
 readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )

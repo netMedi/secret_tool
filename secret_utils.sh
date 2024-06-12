@@ -91,7 +91,7 @@ case $routine in
     command -v secret_tool &> /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
 
     echo 'Creating global secret_tool symlink'
-    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'
+    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'
     ;;
   uninstall)
     ### remove symlink if present

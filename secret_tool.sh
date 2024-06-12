@@ -24,13 +24,29 @@ HELP_LINES=${LINENO} # all lines above this one are considered help text
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
+
+function get_file_modified_date {
+  {
+    # try grabbing info from git
+    file_date=$(git log -1 --pretty="format:%cI" -- $1 2> /dev/null)
+    comment=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
+  } || {
+    # fallback to file modification date
+    file_date=$(date +'%Y-%m-%d at %H:%M:%S%:z' -r $1)
+    comment="(not from git)"
+  }
+  echo "$file_date ($comment)"
+}
+
+
 if [ "$1" = "--version" ]; then
   if [ ! -f "$script_dir/.version" ]; then
     echo '[WARN] Standalone installation (version file is not available).'
     echo '0.0 (detached HEAD)'
     exit 1
   fi
-  ST_VERSION="v$(cat $script_dir/.version | xargs) ($(git log -1 --pretty="format:%cI" -- $script_dir/secret_tool.sh))" || exit 1
+
+  ST_VERSION="v$(cat $script_dir/.version | xargs) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
 
   ST_VERSION=${ST_VERSION/T/ at }
   echo $ST_VERSION
@@ -84,7 +100,7 @@ fi
 
 # print help (head of current file) if no arguments are provided
 if [ "$SHOW_HELP" = "1" ] || [ -z "$target_environments" ]; then
-  cat "${BASH_SOURCE[0]}" | head -n $HELP_LINES | tail -n +3 | head -n -2
+  cat "${BASH_SOURCE[0]}" | head -n $HELP_LINES | tail -n +3 | sed '$d' | sed '$d'
   exit 0
 fi
 

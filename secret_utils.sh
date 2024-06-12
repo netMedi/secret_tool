@@ -17,15 +17,6 @@ routine=$1
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
-if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    export SKIP_OP_USE=1
-    export OP_SKIP_NOTIFIED=1
-  fi
-fi
-
 SYMLINK_DIR=${SYMLINK_DIR:-/usr/local/bin}
 
 case $routine in
@@ -33,6 +24,15 @@ case $routine in
     ### self-test; also accepts custom maps (consider making the tests more universal)
     DEBUG=${DEBUG:-0}
     errors=0
+
+    if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+      # will also trigger if dev is using 1password-cli without gui
+      if ! pgrep 1password &> /dev/null; then
+        echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+        export SKIP_OP_USE=1
+        export OP_SKIP_NOTIFIED=1
+      fi
+    fi
 
     export FILE_NAME_BASE=$script_dir/.env
     export SECRET_MAP=${SECRET_MAP:-$script_dir/secret_map.sample.yml}

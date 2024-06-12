@@ -17,6 +17,12 @@ routine=$1
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
+# will also trigger if dev is using 1password-cli without gui
+if ! pgrep 1password &> /dev/null; then
+  echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+  export SKIP_OP_USE=1
+fi
+
 SYMLINK_DIR=${SYMLINK_DIR:-/usr/local/bin}
 
 case $routine in

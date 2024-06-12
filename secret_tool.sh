@@ -24,16 +24,6 @@ HELP_LINES=${LINENO} # all lines above this one are considered help text
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
-if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    export SKIP_OP_USE=1
-    export OP_SKIP_NOTIFIED=1
-  fi
-fi
-
-
 function get_file_modified_date {
   {
     # try grabbing info from git
@@ -47,7 +37,6 @@ function get_file_modified_date {
   echo "$file_date ($comment)"
 }
 
-
 if [ "$1" = "--version" ]; then
   if [ ! -f "$script_dir/.version" ]; then
     echo '[WARN] Standalone installation (version file is not available).'
@@ -60,6 +49,15 @@ if [ "$1" = "--version" ]; then
   ST_VERSION=${ST_VERSION/T/ at }
   echo $ST_VERSION
   exit 0
+fi
+
+if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+  # will also trigger if dev is using 1password-cli without gui
+  if ! pgrep 1password &> /dev/null; then
+    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+    export SKIP_OP_USE=1
+    export OP_SKIP_NOTIFIED=1
+  fi
 fi
 
 if [ "$1" = "--test" ]; then

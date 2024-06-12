@@ -34,8 +34,12 @@ function get_file_modified_date {
     comment=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
   } || {
     # fallback to file modification date
-    file_date=$(date +'%Y-%m-%d at %H:%M:%S%:z' -r $1)
-    comment="(not from git)"
+    if [[ $(uname) == "Darwin" ]]; then
+      file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" $1)
+    else
+      file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r $1)
+    fi
+    comment="unknown revision" # look into it later
   }
   modified_date_string="$file_date ($comment)"
   modified_date_string=${modified_date_string/T/ at }

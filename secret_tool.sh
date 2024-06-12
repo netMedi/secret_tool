@@ -5,8 +5,11 @@
 
   Usage: [OVERRIDES] ./secret_tool.sh [PROFILE_NAME(S)]
   (if any dashed arguments are present, all other arguments are ignored)
+    ./secret_tool.sh --version                        # print version info and exit
     ./secret_tool.sh --help                           # print help and exit
-    ./secret_tool.sh --profiles                       # list all available profiles and exit (ignores all other arguments)
+    ./secret_tool.sh --test                           # perform self-test and exit (only for full git install)
+    ./secret_tool.sh --update                         # perform self-update and exit (only for full git install)
+    ./secret_tool.sh --profiles                       # list all available profiles and exit
 
   Examples:
     ./secret_tool.sh staging                          # dump secrets for this profile
@@ -21,13 +24,44 @@
 '
 HELP_LINES=${LINENO} # all lines above this one are considered help text
 
+actual_path=$(readlink -f "${BASH_SOURCE[0]}")
+script_dir=$(dirname "$actual_path")
+
+function get_file_modified_date {
+  {
+    # try grabbing info from git
+    file_date=$(git log -1 --pretty="format:%cI" -- $1 2> /dev/null)
+    comment=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
+  } || {
+    # fallback to file modification date
+    file_date=$(date +'%Y-%m-%d at %H:%M:%S%:z' -r $1)
+    comment="(not from git)"
+  }
+  modified_date_string="$file_date ($comment)"
+  modified_date_string=${modified_date_string/T/ at }
+  echo $modified_date_string
+}
+
+if [ "$1" = "--version" ]; then
+  if [ ! -f "$script_dir/.version" ]; then
+    echo '[WARN] Standalone installation (version file is not available).'
+    echo '0.0 (detached HEAD)'
+    exit 1
+  fi
+
+  st_version="v$(cat $script_dir/.version | xargs) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
+  echo $st_version
+  exit 0
+fi
+
+# BASH 4.4+ required, skip for now
 # Prerequisites:
-declare -A command_from_package=(
-  ['1password']='1password'
-  ['op']='1password-cli'
-  ['bash']='bash'
-  ['yq']='yq'
-)
+# declare -A command_from_package=(
+#   ['1password']='1password'
+#   ['op']='1password-cli'
+#   ['bash']='bash'
+#   ['yq']='yq'
+# )
 
 ## 100% opinionated JSON only:
 allowed_boolean_regexp='^(true|false)$'
@@ -49,13 +83,40 @@ fi
 
 # print help (head of current file) if no arguments are provided
 if [ "$SHOW_HELP" = "1" ] || [ -z "$target_environments" ]; then
-  cat "${BASH_SOURCE[0]}" | head -n $HELP_LINES | tail -n +3 | head -n -2
+  cat "${BASH_SOURCE[0]}" | head -n $HELP_LINES | tail -n +3 | sed '$d' | sed '$d'
+  exit 0
+fi
+
+if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+  # will also trigger if dev is using 1password-cli without gui
+  if ! pgrep 1password &> /dev/null; then
+    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+    export SKIP_OP_USE=1
+    export OP_SKIP_NOTIFIED=1
+  fi
+fi
+
+if [ "$1" = "--test" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh test || exit 1
+  exit 0
+fi
+
+if [ "$1" = "--update" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh update || exit 1
   exit 0
 fi
 
 if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
   echo "[ERROR] Secret map file not found: $SECRET_MAP"
-  echo "[INFO] Please, change path or submit correct value via a SECRET_MAP variable"
+  echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
   exit 1
 fi
 
@@ -71,21 +132,18 @@ fi
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
   export SKIP_OP_USE=1
 else
+  # BASH 4.4+ required, skip for now
   # verify installed packages via command presence
-  for cmnd in ${!command_from_package[@]}; do
-    if ! command -v $cmnd &> /dev/null; then
-      echo "[ERROR] '${command_from_package[${cmnd}]}' is required but not installed. Aborting..."
-      exit 1
-    fi
-  done
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-  else
-    # signin manually if 1password GUI is a Flatpak app
-    op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
-    echo '[INFO] Extracting values...'
-  fi
+  # for cmnd in ${!command_from_package[@]}; do
+  #   if ! command -v $cmnd &> /dev/null; then
+  #     echo "[ERROR] '${command_from_package[${cmnd}]}' is required but not installed. Aborting..."
+  #     exit 1
+  #   fi
+  # done
+
+  # signin manually if 1password GUI is a Flatpak app
+  op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
+  echo '[INFO] Extracting values...'
 fi
 
 for target_profile in $target_environments; do
@@ -97,49 +155,62 @@ for target_profile in $target_environments; do
 done
 [ "$FAILED" = "1" ] && exit 1
 
+# BASH 4.4+ required, skip for now
 # ensure blocks have 1 instance of each key
+# function duplicates_check {
+#   input_array=("$@")
+#   declare -A detected_instances
+#   for i in "${input_array[@]}"; do
+#     if [[ -n ${detected_instances["$i"]} ]]; then # avoid duplicates (from defaults)
+#       echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${i}"
+#       exit 1
+#     fi
+#     detected_instances["$i"]=1
+#   done
+# }
+
 function duplicates_check {
   input_array=("$@")
-  declare -A detected_instances
-  for i in "${input_array[@]}"; do
-    if [[ -n ${detected_instances["$i"]} ]]; then # avoid duplicates (from defaults)
-      echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${i}"
-      exit 1
-    fi
-    detected_instances["$i"]=1
+  for ((i=0; i<${#input_array[@]}; i++)); do
+    for ((j=i+1; j<${#input_array[@]}; j++)); do
+      if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
+        echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${input_array[i]}"
+        exit 1
+      fi
+    done
   done
 }
 
 # block of overridable defaults
-readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
+# readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
+env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP)
 duplicates_check "${env_variables_defaults[@]}"
 
 for target_profile in $target_environments; do
   output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
 
   # block of target environment
-  readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
+  # readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
+  env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP)
   duplicates_check "${env_variables[@]}"
 
 
   # list of all env variables sorted alphabetically
   env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
-  declare -A skip_vars=(['<<']=1)
+  # declare -A skip_vars=(['<<']=1)
   clean_env=()
   for i in "${env_variables[@]}"; do
-    if [[ -z ${skip_vars["$i"]} ]]; then
+    if ! [ "$i" = '<<' ]; then
       clean_env+=("$i")
     fi
-    skip_vars["$i"]=1
+    # skip_vars["$i"]=1
   done
-  readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
+  # readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
+  IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
 
 
   # uncomment next line for debugging
   # echo "All env variables: ${env_variables[@]}"
-
-  SECRET_MAP_RELEASE_ISO=$(git log -1 --pretty="format:%cI (commit %H)" $SECRET_MAP 2> /dev/null || date +'%Y-%m-%d at %H:%M:%S%:z (not from git)' -r $SECRET_MAP)
-  SECRET_MAP_RELEASE=${SECRET_MAP_RELEASE_ISO/T/ at }
 
   # headers
   echo '# Content type: environment variables and secrets' > $output_file_path
@@ -147,7 +218,7 @@ for target_profile in $target_environments; do
   echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path
   echo "# Profile: ${target_profile}" >> $output_file_path
   echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path
-  echo "# Secret map release: $SECRET_MAP_RELEASE" >> $output_file_path
+  echo "# Secret map release: $(get_file_modified_date $SECRET_MAP)" >> $output_file_path
   echo '' >> $output_file_path
 
 
@@ -160,8 +231,12 @@ for target_profile in $target_environments; do
     else
       # otherwise, use value from secret map
       var_value=$(yq e ".profiles.$target_profile.$var_name | explode(.)" $SECRET_MAP)
-      if [ "$(echo $var_value | cut -c1-3)" == ":::" ] && [ "$SKIP_OP_USE" != "1" ]; then
-        var_value=$(op read "$(echo $var_value | cut -c4- | xargs)" 2> /dev/null)
+      if [ "$(echo $var_value | cut -c1-3)" = ":::" ]; then
+        if [ "$SKIP_OP_USE" = "1" ]; then
+          var_value=''
+        else
+          var_value=$(op read "$(echo $var_value | cut -c4- | xargs)" 2> /dev/null)
+        fi
       fi
     fi
 

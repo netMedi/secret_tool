@@ -134,6 +134,7 @@ else
   # will also trigger if dev is using 1password-cli without gui
   if ! pgrep 1password &> /dev/null; then
     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+    export SKIP_OP_USE=1
   else
     # signin manually if 1password GUI is a Flatpak app
     op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1

@@ -7,8 +7,8 @@
   (if any dashed arguments are present, all other arguments are ignored)
     ./secret_tool.sh --version                        # print version info and exit
     ./secret_tool.sh --help                           # print help and exit
-    ./secret_tool.sh --test                           # perform self-test and exit (only for full git install)
     ./secret_tool.sh --update                         # perform self-update and exit (only for full git install)
+    ./secret_tool.sh --test                           # perform self-test and exit (only for full git install)
     ./secret_tool.sh --profiles                       # list all available profiles and exit
 
   Examples:
@@ -87,6 +87,15 @@ if [ "$SHOW_HELP" = "1" ] || [ -z "$target_environments" ]; then
   exit 0
 fi
 
+if [ "$1" = "--update" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh update || exit 1
+  exit 0
+fi
+
 if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
   # will also trigger if dev is using 1password-cli without gui
   if ! pgrep 1password &> /dev/null; then
@@ -102,15 +111,6 @@ if [ "$1" = "--test" ]; then
     exit 1
   fi
   $script_dir/secret_utils.sh test || exit 1
-  exit 0
-fi
-
-if [ "$1" = "--update" ]; then
-  if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
-    exit 1
-  fi
-  $script_dir/secret_utils.sh update || exit 1
   exit 0
 fi
 

@@ -25,6 +25,13 @@ actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
 
+# will also trigger if dev is using 1password-cli without gui
+if ! pgrep 1password &> /dev/null; then
+  echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+  export SKIP_OP_USE=1
+fi
+
+
 function get_file_modified_date {
   {
     # try grabbing info from git
@@ -131,15 +138,9 @@ else
   #   fi
   # done
 
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    export SKIP_OP_USE=1
-  else
-    # signin manually if 1password GUI is a Flatpak app
-    op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
-    echo '[INFO] Extracting values...'
-  fi
+  # signin manually if 1password GUI is a Flatpak app
+  op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
+  echo '[INFO] Extracting values...'
 fi
 
 for target_profile in $target_environments; do

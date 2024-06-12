@@ -37,7 +37,9 @@ function get_file_modified_date {
     file_date=$(date +'%Y-%m-%d at %H:%M:%S%:z' -r $1)
     comment="(not from git)"
   }
-  echo "$file_date ($comment)"
+  modified_date_string="$file_date ($comment)"
+  modified_date_string=${modified_date_string/T/ at }
+  echo $modified_date_string
 }
 
 if [ "$1" = "--version" ]; then
@@ -47,10 +49,8 @@ if [ "$1" = "--version" ]; then
     exit 1
   fi
 
-  ST_VERSION="v$(cat $script_dir/.version | xargs) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
-
-  ST_VERSION=${ST_VERSION/T/ at }
-  echo $ST_VERSION
+  st_version="v$(cat $script_dir/.version | xargs) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
+  echo $st_version
   exit 0
 fi
 
@@ -212,16 +212,13 @@ for target_profile in $target_environments; do
   # uncomment next line for debugging
   # echo "All env variables: ${env_variables[@]}"
 
-  SECRET_MAP_RELEASE_ISO=$(git log -1 --pretty="format:%cI (commit %H)" $SECRET_MAP 2> /dev/null || date +'%Y-%m-%d at %H:%M:%S%:z (not from git)' -r $SECRET_MAP)
-  SECRET_MAP_RELEASE=${SECRET_MAP_RELEASE_ISO/T/ at }
-
   # headers
   echo '# Content type: environment variables and secrets' > $output_file_path
   echo "# File path: $(realpath $output_file_path)" >> $output_file_path
   echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path
   echo "# Profile: ${target_profile}" >> $output_file_path
   echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path
-  echo "# Secret map release: $SECRET_MAP_RELEASE" >> $output_file_path
+  echo "# Secret map release: $(get_file_modified_date $SECRET_MAP)" >> $output_file_path
   echo '' >> $output_file_path
 
 

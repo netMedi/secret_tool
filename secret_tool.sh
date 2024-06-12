@@ -51,35 +51,6 @@ if [ "$1" = "--version" ]; then
   exit 0
 fi
 
-if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    export SKIP_OP_USE=1
-    export OP_SKIP_NOTIFIED=1
-  fi
-fi
-
-if [ "$1" = "--test" ]; then
-  if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
-    exit 1
-  fi
-  SKIP_OP_USE=$SKIP_OP_USE \
-    $script_dir/secret_utils.sh test \
-      || exit 1
-  exit 0
-fi
-
-if [ "$1" = "--update" ]; then
-  if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
-    exit 1
-  fi
-  $script_dir/secret_utils.sh update || exit 1
-  exit 0
-fi
-
 # BASH 4.4+ required, skip for now
 # Prerequisites:
 # declare -A command_from_package=(
@@ -121,6 +92,35 @@ fi
 
 if [[ "$*" == *"--profiles"* ]]; then
   yq e ".profiles | keys | .[]" $SECRET_MAP | tail -n +1 | grep -v '^--'
+  exit 0
+fi
+
+if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+  # will also trigger if dev is using 1password-cli without gui
+  if ! pgrep 1password &> /dev/null; then
+    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+    export SKIP_OP_USE=1
+    export OP_SKIP_NOTIFIED=1
+  fi
+fi
+
+if [ "$1" = "--test" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
+    exit 1
+  fi
+  SKIP_OP_USE=$SKIP_OP_USE \
+    $script_dir/secret_utils.sh test \
+      || exit 1
+  exit 0
+fi
+
+if [ "$1" = "--update" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
+    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
+    exit 1
+  fi
+  $script_dir/secret_utils.sh update || exit 1
   exit 0
 fi
 

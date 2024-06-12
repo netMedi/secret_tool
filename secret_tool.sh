@@ -39,7 +39,7 @@ function get_file_modified_date {
     else
       file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r $1)
     fi
-    comment="(not from git)"
+    comment="unknown revision" # look into it later
   }
   modified_date_string="$file_date ($comment)"
   modified_date_string=${modified_date_string/T/ at }

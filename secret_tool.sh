@@ -24,8 +24,21 @@ HELP_LINES=${LINENO} # all lines above this one are considered help text
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
+if [ "$1" = "--version" ]; then
+  if [ ! -f "$script_dir/.version" ]; then
+    echo '[WARN] Standalone installation (version file is not available).'
+    echo '0.0 (detached HEAD)'
+    exit 1
+  fi
+  ST_VERSION="v$(cat $script_dir/.version | xargs) ($(git log -1 --pretty="format:%cI" -- $script_dir/secret_tool.sh))" || exit 1
+
+  ST_VERSION=${ST_VERSION/T/ at }
+  echo $ST_VERSION
+  exit 0
+fi
+
 if [ "$1" = "--test" ]; then
-  if [ -f "$script_dir/secret_utils.sh" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
     exit 1
   fi
@@ -34,7 +47,7 @@ if [ "$1" = "--test" ]; then
 fi
 
 if [ "$1" = "--update" ]; then
-  if [ -f "$script_dir/secret_utils.sh" ]; then
+  if [ ! -f "$script_dir/secret_utils.sh" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
     exit 1
   fi

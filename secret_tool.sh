@@ -71,7 +71,7 @@ if [ "$1" = "--update" ]; then
   exit 0
 fi
 
-# BASH 4+ required, skip for now
+# BASH 4.4+ required, skip for now
 # Prerequisites:
 # declare -A command_from_package=(
 #   ['1password']='1password'
@@ -122,7 +122,7 @@ fi
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
   export SKIP_OP_USE=1
 else
-  # BASH 4+ required, skip for now
+  # BASH 4.4+ required, skip for now
   # verify installed packages via command presence
   # for cmnd in ${!command_from_package[@]}; do
   #   if ! command -v $cmnd &> /dev/null; then
@@ -151,7 +151,7 @@ for target_profile in $target_environments; do
 done
 [ "$FAILED" = "1" ] && exit 1
 
-# BASH 4+ required, skip for now
+# BASH 4.4+ required, skip for now
 # ensure blocks have 1 instance of each key
 # function duplicates_check {
 #   input_array=("$@")

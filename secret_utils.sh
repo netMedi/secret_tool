@@ -54,11 +54,11 @@ case $routine in
     fi
 
     # verify 1password integration is working
-    if (cat $script_dir/.env.sample | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 &> /dev/null); then
-      echo '[OK] 1password reference is present'
+    if [ "$SKIP_OP_USE" = "1" ]; then
+      echo '[INFO] 1password reference is missing (skipped)'
     else
-      if [ "$SKIP_OP_USE" = "1" ]; then
-        echo '[INFO] 1password reference is missing (skipped)'
+      if (cat $script_dir/.env.sample | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 &> /dev/null); then
+        echo '[OK] 1password reference is present'
       else
         echo '[ERROR] 1password reference is missing'
         ((errors++))

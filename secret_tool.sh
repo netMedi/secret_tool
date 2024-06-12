@@ -24,11 +24,13 @@ HELP_LINES=${LINENO} # all lines above this one are considered help text
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
 
-
-# will also trigger if dev is using 1password-cli without gui
-if ! pgrep 1password &> /dev/null; then
-  echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-  export SKIP_OP_USE=1
+if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+  # will also trigger if dev is using 1password-cli without gui
+  if ! pgrep 1password &> /dev/null; then
+    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+    export SKIP_OP_USE=1
+    export OP_SKIP_NOTIFIED=1
+  fi
 fi
 
 

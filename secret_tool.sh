@@ -176,38 +176,17 @@ function duplicates_check {
   done
 }
 
-if ! type -t readarray >/dev/null; then
-  readarray() {
-    local cmd opt v=MAPFILE
-    while [ -n "$1" ]; do
-      case "$1" in
-        -r) shift; opt="$opt -r"; ;;
-        -t) shift; t=1; ;;
-        -u) shift; if [ -n "$1" ]; then opt="$opt -u $1"; shift; fi ;;
-        *) if [[ "$1" =~ ^[A-Za-z_]+$ ]]; then v="$1"; shift; else
-            echo -en "Error: Unknown option: '$1'\n" 1>&2
-            exit
-          fi ;;
-      esac
-    done
-    cmd="read $opt"
-    eval "$v=()"
-    while IFS= eval "$cmd line"; do
-      line=$(echo "$line" | sed -e "s#\\([\"\\`]\\)#\\\\\\1#g")
-      eval "${v}+=(\"$line\")"
-    done
-  }
-fi
-
 # block of overridable defaults
-readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
+# readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
+env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP)
 duplicates_check "${env_variables_defaults[@]}"
 
 for target_profile in $target_environments; do
   output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
 
   # block of target environment
-  readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
+  # readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
+  env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP)
   duplicates_check "${env_variables[@]}"
 
 
@@ -221,7 +200,8 @@ for target_profile in $target_environments; do
     fi
     # skip_vars["$i"]=1
   done
-  readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
+  # readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
+  IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
 
 
   # uncomment next line for debugging

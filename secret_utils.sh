@@ -46,7 +46,7 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (cat $script_dir/.env.sample | grep ^TEST_VAR_YAML_INHERITANCE_PASSED1 | wc -l | grep 1 &> /dev/null); then
+    if (cat $script_dir/.env.sample | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 &> /dev/null); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'

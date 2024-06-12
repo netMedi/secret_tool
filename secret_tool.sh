@@ -234,8 +234,12 @@ for target_profile in $target_environments; do
     else
       # otherwise, use value from secret map
       var_value=$(yq e ".profiles.$target_profile.$var_name | explode(.)" $SECRET_MAP)
-      if [ "$(echo $var_value | cut -c1-3)" == ":::" ] && [ "$SKIP_OP_USE" != "1" ]; then
-        var_value=$(op read "$(echo $var_value | cut -c4- | xargs)" 2> /dev/null)
+      if [ "$(echo $var_value | cut -c1-3)" = ":::" ]; then
+        if [ "$SKIP_OP_USE" = "1" ]; then
+          var_value=''
+        else
+          var_value=$(op read "$(echo $var_value | cut -c4- | xargs)" 2> /dev/null)
+        fi
       fi
     fi
 

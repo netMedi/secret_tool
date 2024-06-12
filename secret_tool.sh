@@ -65,7 +65,9 @@ if [ "$1" = "--test" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
     exit 1
   fi
-  $script_dir/secret_utils.sh test || exit 1
+  SKIP_OP_USE=$SKIP_OP_USE \
+    $script_dir/secret_utils.sh test \
+      || exit 1
   exit 0
 fi
 

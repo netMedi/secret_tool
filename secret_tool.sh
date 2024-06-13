@@ -100,14 +100,14 @@ if [ "$1" = "--update" ]; then
   exit 0
 fi
 
-if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-  # will also trigger if dev is using 1password-cli without gui
-  if ! pgrep 1password &> /dev/null; then
-    echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    export SKIP_OP_USE=1
-    export OP_SKIP_NOTIFIED=1
-  fi
-fi
+# if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
+#   # will also trigger if dev is using 1password-cli without gui
+#   if ! pgrep 1password &> /dev/null; then
+#     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
+#     export SKIP_OP_USE=1
+#     export OP_SKIP_NOTIFIED=1
+#   fi
+# fi
 
 if [ "$1" = "--test" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then

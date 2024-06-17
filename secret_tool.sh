@@ -41,14 +41,13 @@ function get_file_modified_date {
     fi
     commit=''
   }
-  [ -z "$commit" ] && comment='' || comment="commit $commit"
-  modified_date_string="$file_date $comment"
+  modified_date_string="$file_date $commit"
   modified_date_string=${modified_date_string/T/ at }
   echo $modified_date_string
 }
 
 if [ "$1" = "--version" ]; then
-  st_version="$(cat $script_dir/secret_tool.sh | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
+  st_version="$(cat $actual_path | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date $actual_path)" || exit 1
   echo $st_version
   exit 0
 fi

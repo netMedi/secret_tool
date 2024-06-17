@@ -31,7 +31,7 @@ function get_file_modified_date {
   {
     # try grabbing info from git
     file_date=$(git log -1 --pretty="format:%cI" -- $1 2> /dev/null)
-    comment=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
+    commit=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
   } || {
     # fallback to file modification date
     if [[ $(uname) == "Darwin" ]]; then
@@ -39,21 +39,16 @@ function get_file_modified_date {
     else
       file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r $1)
     fi
-    comment="unknown revision" # look into it later
+    commit=''
   }
-  modified_date_string="$file_date ($comment)"
+  [ -z "$commit" ] && comment='' || comment="commit $commit"
+  modified_date_string="$file_date $comment"
   modified_date_string=${modified_date_string/T/ at }
   echo $modified_date_string
 }
 
 if [ "$1" = "--version" ]; then
-  if [ ! -f "$script_dir/.version" ]; then
-    echo '[WARN] Standalone installation (version file is not available).'
-    echo '0.0 (detached HEAD)'
-    exit 1
-  fi
-
-  st_version="v$(cat $script_dir/.version | xargs) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
+  st_version="$(cat $script_dir/secret_tool.sh | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date $script_dir/secret_tool.sh)" || exit 1
   echo $st_version
   exit 0
 fi
@@ -267,3 +262,5 @@ done
 ### How to handle stuff in CI per package:
 # echo <<parameters.package>>
 # # name_orig="<<parameters.package>>"; name_snakecase="${name_orig//-/_}"; var_part=$(echo "$name_snakecase" | tr '[:lower:]' '[:upper:]') # remove _${var_part}_ from var names to get katedraali-dev vars
+
+# v1.1

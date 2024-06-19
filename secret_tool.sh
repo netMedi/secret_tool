@@ -172,8 +172,7 @@ function duplicates_check {
   for ((i=0; i<${#input_array[@]}; i++)); do
     for ((j=i+1; j<${#input_array[@]}; j++)); do
       if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
-        echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${input_array[i]}"
-        exit 1
+        echo "[WARN] Duplicate keys detected: ${input_array[i]}"
       fi
     done
   done
@@ -190,7 +189,7 @@ for target_profile in $target_environments; do
   # block of target environment
   # readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
   env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP)
-  duplicates_check "${env_variables[@]}"
+  # duplicates_check "${env_variables[@]}"
 
 
   # list of all env variables sorted alphabetically
@@ -210,14 +209,15 @@ for target_profile in $target_environments; do
   # uncomment next line for debugging
   # echo "All env variables: ${env_variables[@]}"
 
+  echo '' > $output_file_path
   # headers
-  echo '# Content type: environment variables and secrets' > $output_file_path
-  echo "# File path: $(realpath $output_file_path)" >> $output_file_path
-  echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path
-  echo "# Profile: ${target_profile}" >> $output_file_path
-  echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path
-  echo "# Secret map release: $(get_file_modified_date $SECRET_MAP)" >> $output_file_path
-  echo '' >> $output_file_path
+  # echo '# Content type: environment variables and secrets' > $output_file_path.tmp
+  # echo "# File path: $(realpath $output_file_path)" >> $output_file_path.tmp
+  # echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path.tmp
+  # echo "# Profile: ${target_profile}" >> $output_file_path.tmp
+  # echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path.tmp
+  # echo "# Secret map release: $(get_file_modified_date $SECRET_MAP)" >> $output_file_path.tmp
+  # echo '' >> $output_file_path.tmp
 
 
   # content itself
@@ -225,7 +225,7 @@ for target_profile in $target_environments; do
     # if local env variable override is present, use that
     var_value=$(echo "${!var_name}")
     if [ -n "$var_value" ]; then
-      echo "# overridden from local env: $var_name" >> $output_file_path
+      echo "# overridden from local env: $var_name" >> $output_file_path.tmp
     else
       # otherwise, use value from secret map
       var_value=$(yq e ".profiles.$target_profile.$var_name | explode(.)" $SECRET_MAP)
@@ -251,15 +251,31 @@ for target_profile in $target_environments; do
           var_value="'${var_value}'"
         fi
       fi
-      echo "${var_name}=${var_value}" >> $output_file_path
+      echo "${var_name}=${var_value}" >> $output_file_path.tmp
     else
-      echo "# '${var_name}' is blank (use INCLUDE_BLANK=1 to include it here anyway)" >> $output_file_path
+      [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
     fi
   done
+
+  sort $output_file_path.tmp | uniq > $output_file_path
+  rm $output_file_path.tmp
+
+  # headers
+  cat <<EOF > $output_file_path
+# Content type: environment variables and secrets
+# File path: $(realpath $output_file_path)
+# Map path: $(realpath $SECRET_MAP)
+# Profile: ${target_profile}
+# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')
+# Secret map release: $(get_file_modified_date $SECRET_MAP)
+
+$(cat $output_file_path)
+EOF
+
 done
 
 ### How to handle stuff in CI per package:
 # echo <<parameters.package>>
 # # name_orig="<<parameters.package>>"; name_snakecase="${name_orig//-/_}"; var_part=$(echo "$name_snakecase" | tr '[:lower:]' '[:upper:]') # remove _${var_part}_ from var names to get katedraali-dev vars
 
-# v1.1
+# v1.2

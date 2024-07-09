@@ -3,24 +3,24 @@
   Script: secret_tool.sh
   Purpose: Dump secrets from 1password and secret map to .env file
 
-  Usage: [OVERRIDES] ./secret_tool.sh [PROFILE_NAME(S)]
+  Usage: [OVERRIDES] secret_tool [PROFILE_NAME(S)]
   (if any dashed arguments are present, all other arguments are ignored)
-    ./secret_tool.sh --version                        # print version info and exit
-    ./secret_tool.sh --help                           # print help and exit
-    ./secret_tool.sh --update                         # perform self-update and exit (only for full git install)
-    ./secret_tool.sh --test                           # perform self-test and exit (only for full git install)
-    ./secret_tool.sh --profiles                       # list all available profiles and exit
+    secret_tool --version                        # print version info and exit
+    secret_tool --help                           # print help and exit
+    secret_tool --update                         # perform self-update and exit (only for full git install)
+    secret_tool --test                           # perform self-test and exit (only for full git install)
+    secret_tool --profiles                       # list all available profiles and exit
 
   Examples:
-    ./secret_tool.sh staging                          # dump secrets for this profile
-    ./secret_tool.sh dev test                         # dump secrets for these two profiles
-    VAR123='' ./secret_tool.sh                        # ignore local override of this variable
-    SECRET_MAP="~/alt-map.yml" ./secret_tool.sh test  # use this map file
-    INCLUDE_BLANK=1 ./secret_tool.sh dev              # dump all, also empty values
-    FILE_NAME_BASE="/tmp/.env" ./secret_tool.sh dev   # start file name with this (create file /tmp/.env.dev)
-    FILE_POSTFIX=".sh" ./secret_tool.sh prod          # append this to file name end (.env.prod.sh)
-    PROFILES="ci test" ./secret_tool.sh               # set target profiles via variable (same as `./secret_tool.sh ci test`)
-    SKIP_OP=1 ./secret_tool.sh ci                     # do not use 1password
+    secret_tool staging                          # dump secrets for this profile
+    secret_tool dev test                         # dump secrets for these two profiles
+    VAR123='' secret_tool                        # ignore local override of this variable
+    SECRET_MAP="~/alt-map.yml" secret_tool test  # use this map file
+    INCLUDE_BLANK=1 secret_tool dev              # dump all, also empty values
+    FILE_NAME_BASE="/tmp/.env" secret_tool dev   # start file name with this (create file /tmp/.env.dev)
+    FILE_POSTFIX=".sh" secret_tool prod          # append this to file name end (.env.prod.sh)
+    PROFILES="ci test" secret_tool               # set target profiles via variable (same as `secret_tool ci test`)
+    SKIP_OP=1 secret_tool ci                     # do not use 1password
 '
 HELP_LINES=${LINENO} # all lines above this one are considered help text
 
@@ -47,7 +47,12 @@ function get_file_modified_date {
 }
 
 if [ "$1" = "--version" ]; then
-  st_version="$(cat $actual_path | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date $actual_path)" || exit 1
+  st_file_name=secret_tool.sh
+  [ -f "$script_dir/secret_utils.sh" ] \
+    && cd $script_dir \
+    || st_file_name=secret_tool
+
+  st_version="$(cat ./$st_file_name | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date ./$st_file_name)" || exit 1
   echo $st_version
   exit 0
 fi
@@ -278,4 +283,4 @@ done
 # echo <<parameters.package>>
 # # name_orig="<<parameters.package>>"; name_snakecase="${name_orig//-/_}"; var_part=$(echo "$name_snakecase" | tr '[:lower:]' '[:upper:]') # remove _${var_part}_ from var names to get katedraali-dev vars
 
-# v1.2
+# v1.2.1

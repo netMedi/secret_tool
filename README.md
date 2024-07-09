@@ -7,13 +7,15 @@ The tool to contextually handle environment variables and secrets in a secure wa
 
 Hard:
   - bash
-  - yq
-  - [1password-cli (for handling SECRETS)](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
+  - [yq](https://github.com/mikefarah/yq)
+  - [1password-cli](https://developer.1password.com/docs/cli/get-started/) (for handling SECRETS)
 
 Soft:
-  - dotenvx (for wrapping commands only)
+  - [dotenvx](https://dotenvx.com/docs/install) (for wrapping commands only)
   - git (for updates)
 
+References:
+  - [Using 1password with netmedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
 
 ## First time [install]
 

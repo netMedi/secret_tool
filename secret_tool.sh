@@ -10,6 +10,8 @@
     secret_tool --update                         # perform self-update and exit (only for full git install)
     secret_tool --test                           # perform self-test and exit (only for full git install)
     secret_tool --profiles                       # list all available profiles and exit
+    secret_tool --op-auth-make                   # save op session data (local dev)
+    secret_tool --op-auth-take                   # load op session data (local dev)
 
   Examples:
     secret_tool staging                          # dump secrets for this profile
@@ -117,6 +119,29 @@ if [ "$1" = "--test" ]; then
   exit 0
 fi
 
+if [ "$1" = "--op-auth-make" ]; then
+  # NEVER USE THIS ON PROD ENVIRONMENT!!! This is only for local convenience
+  export_line=$(op signin --account netmedi -f 2> /dev/null | head -n 1 | cut -d' ' -f2)
+  if [ -n "$export_line" ]; then
+    echo "$export_line" > $script_dir/.op_session_data # this will fail to write into system dir, that is by design, we only want to write into user-owned dir
+    echo "export $export_line;"
+    exit 0
+  fi
+
+  exit 1
+fi
+
+if [ "$1" = "--op-auth-take" ]; then
+  # NEVER USE THIS ON PROD ENVIRONMENT!!! This is only for local convenience
+  export_line=$(cat "$script_dir/.op_session_data" 2> /dev/null)
+  if [ -n "$export_line" ]; then
+    echo "export $export_line;"
+    exit 0
+  fi
+
+  exit 1
+fi
+
 if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
   echo "[ERROR] Secret map file not found: $SECRET_MAP"
   echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
@@ -145,7 +170,7 @@ else
   # done
 
   # signin manually if 1password GUI is a Flatpak app
-  op whoami 2> /dev/null &> /dev/null || eval $(op signin) || exit 1
+  op whoami 2> /dev/null &> /dev/null || eval $(op signin --account netmedi) || exit 1
   echo '[INFO] Extracting values...'
 fi
 
@@ -233,7 +258,7 @@ for target_profile in $target_environments; do
       echo "# overridden from local env: $var_name" >> $output_file_path.tmp
     else
       # otherwise, use value from secret map
-      var_value=$(yq e ".profiles.$target_profile.$var_name | explode(.)" $SECRET_MAP)
+      var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" $SECRET_MAP)
       if [ "$(echo $var_value | cut -c1-3)" = ":::" ]; then
         if [ "$SKIP_OP_USE" = "1" ]; then
           var_value=''
@@ -272,6 +297,7 @@ for target_profile in $target_environments; do
 # Map path: $(realpath $SECRET_MAP)
 # Profile: ${target_profile}
 # Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')
+# Secret tool version: $($actual_path --version)
 # Secret map release: $(get_file_modified_date $SECRET_MAP)
 
 $(cat $output_file_path)
@@ -283,4 +309,4 @@ done
 # echo <<parameters.package>>
 # # name_orig="<<parameters.package>>"; name_snakecase="${name_orig//-/_}"; var_part=$(echo "$name_snakecase" | tr '[:lower:]' '[:upper:]') # remove _${var_part}_ from var names to get katedraali-dev vars
 
-# v1.2.1
+# v1.3.0

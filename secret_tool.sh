@@ -10,8 +10,6 @@
     secret_tool --update                         # perform self-update and exit (only for full git install)
     secret_tool --test                           # perform self-test and exit (only for full git install)
     secret_tool --profiles                       # list all available profiles and exit
-    secret_tool --op-auth-make                   # save op session data (local dev)
-    secret_tool --op-auth-take                   # load op session data (local dev)
 
   Examples:
     secret_tool staging                          # dump secrets for this profile
@@ -59,15 +57,6 @@ if [ "$1" = "--version" ]; then
   exit 0
 fi
 
-# BASH 4.4+ required, skip for now
-# Prerequisites:
-# declare -A command_from_package=(
-#   ['1password']='1password'
-#   ['op']='1password-cli'
-#   ['bash']='bash'
-#   ['yq']='yq'
-# )
-
 ## 100% opinionated JSON only:
 allowed_boolean_regexp='^(true|false)$'
 
@@ -101,15 +90,6 @@ if [ "$1" = "--update" ]; then
   exit 0
 fi
 
-# if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-#   # will also trigger if dev is using 1password-cli without gui
-#   if ! pgrep 1password &> /dev/null; then
-#     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-#     export SKIP_OP_USE=1
-#     export OP_SKIP_NOTIFIED=1
-#   fi
-# fi
-
 if [ "$1" = "--test" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
@@ -117,29 +97,6 @@ if [ "$1" = "--test" ]; then
   fi
   $script_dir/secret_utils.sh test || exit 1
   exit 0
-fi
-
-if [ "$1" = "--op-auth-make" ]; then
-  # NEVER USE THIS ON PROD ENVIRONMENT!!! This is only for local convenience
-  export_line=$(op signin --account netmedi -f 2> /dev/null | head -n 1 | cut -d' ' -f2)
-  if [ -n "$export_line" ]; then
-    echo "$export_line" > $script_dir/.op_session_data # this will fail to write into system dir, that is by design, we only want to write into user-owned dir
-    echo "export $export_line;"
-    exit 0
-  fi
-
-  exit 1
-fi
-
-if [ "$1" = "--op-auth-take" ]; then
-  # NEVER USE THIS ON PROD ENVIRONMENT!!! This is only for local convenience
-  export_line=$(cat "$script_dir/.op_session_data" 2> /dev/null)
-  if [ -n "$export_line" ]; then
-    echo "export $export_line;"
-    exit 0
-  fi
-
-  exit 1
 fi
 
 if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
@@ -160,17 +117,9 @@ fi
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
   export SKIP_OP_USE=1
 else
-  # BASH 4.4+ required, skip for now
-  # verify installed packages via command presence
-  # for cmnd in ${!command_from_package[@]}; do
-  #   if ! command -v $cmnd &> /dev/null; then
-  #     echo "[ERROR] '${command_from_package[${cmnd}]}' is required but not installed. Aborting..."
-  #     exit 1
-  #   fi
-  # done
-
-  # signin manually if 1password GUI is a Flatpak app
+  # signin manually if 1password eval signin has not been done yet
   op whoami 2> /dev/null &> /dev/null || eval $(op signin --account netmedi) || exit 1
+  # eval $(op signin --account netmedi); op whoami 2> /dev/null &> /dev/null || exit 1
   echo '[INFO] Extracting values...'
 fi
 
@@ -182,20 +131,6 @@ for target_profile in $target_environments; do
   fi
 done
 [ "$FAILED" = "1" ] && exit 1
-
-# BASH 4.4+ required, skip for now
-# ensure blocks have 1 instance of each key
-# function duplicates_check {
-#   input_array=("$@")
-#   declare -A detected_instances
-#   for i in "${input_array[@]}"; do
-#     if [[ -n ${detected_instances["$i"]} ]]; then # avoid duplicates (from defaults)
-#       echo "[ERROR] Secret map validation failed. Duplicate keys detected: ${i}"
-#       exit 1
-#     fi
-#     detected_instances["$i"]=1
-#   done
-# }
 
 function duplicates_check {
   input_array=("$@")
@@ -209,7 +144,6 @@ function duplicates_check {
 }
 
 # block of overridable defaults
-# readarray env_variables_defaults < <( yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP )
 env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP)
 duplicates_check "${env_variables_defaults[@]}"
 
@@ -217,10 +151,7 @@ for target_profile in $target_environments; do
   output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
 
   # block of target environment
-  # readarray env_variables < <( yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP )
   env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP)
-  # duplicates_check "${env_variables[@]}"
-
 
   # list of all env variables sorted alphabetically
   env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
@@ -232,7 +163,6 @@ for target_profile in $target_environments; do
     fi
     # skip_vars["$i"]=1
   done
-  # readarray -td '' env_variables < <(printf '%s\0' "${clean_env[@]}" | sort -z)
   IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
 
 
@@ -240,15 +170,6 @@ for target_profile in $target_environments; do
   # echo "All env variables: ${env_variables[@]}"
 
   echo '' > $output_file_path
-  # headers
-  # echo '# Content type: environment variables and secrets' > $output_file_path.tmp
-  # echo "# File path: $(realpath $output_file_path)" >> $output_file_path.tmp
-  # echo "# Map path: $(realpath $SECRET_MAP)" >> $output_file_path.tmp
-  # echo "# Profile: ${target_profile}" >> $output_file_path.tmp
-  # echo "# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')" >> $output_file_path.tmp
-  # echo "# Secret map release: $(get_file_modified_date $SECRET_MAP)" >> $output_file_path.tmp
-  # echo '' >> $output_file_path.tmp
-
 
   # content itself
   for var_name in "${env_variables[@]}"; do
@@ -305,8 +226,4 @@ EOF
 
 done
 
-### How to handle stuff in CI per package:
-# echo <<parameters.package>>
-# # name_orig="<<parameters.package>>"; name_snakecase="${name_orig//-/_}"; var_part=$(echo "$name_snakecase" | tr '[:lower:]' '[:upper:]') # remove _${var_part}_ from var names to get katedraali-dev vars
-
-# v1.3.0
+# v1.3.1

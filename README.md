@@ -6,7 +6,7 @@ The tool to contextually handle environment variables and secrets in a secure wa
 ## Requirements
 
 Hard:
-  - bash
+  - dash / ash / bash
   - [yq](https://github.com/mikefarah/yq)
   - [1password-cli](https://developer.1password.com/docs/cli/get-started/) (for handling SECRETS)
 

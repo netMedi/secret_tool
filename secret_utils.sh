@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 : "
   Script: secret_utils.sh
   Purpose: Configuration utils for secret_tool
@@ -25,21 +25,12 @@ case $routine in
     DEBUG=${DEBUG:-0}
     errors=0
 
-    # if [ "$OP_SKIP_NOTIFIED" != "1" ]; then
-    #   # will also trigger if dev is using 1password-cli without gui
-    #   if ! pgrep 1password &> /dev/null; then
-    #     echo "[WARN] 1password is not running. You will get empty values for OP secrets."
-    #     export SKIP_OP_USE=1
-    #     export OP_SKIP_NOTIFIED=1
-    #   fi
-    # fi
-
-    export FILE_NAME_BASE=$script_dir/.env
-    export SECRET_MAP=${SECRET_MAP:-$script_dir/secret_map.sample.yml}
-    $script_dir/secret_tool.sh sample
+    export FILE_NAME_BASE="$script_dir/.env"
+    export SECRET_MAP="${SECRET_MAP:-$script_dir/secret_map.sample.yml}"
+    "$script_dir/secret_tool.sh" sample
 
     # simple number
-    if (cat $script_dir/.env.sample | grep ^TEST_VAR_NUMBER | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_NUMBER | wc -l | grep 1 &> /dev/null); then
       echo '[OK] Numeric value is present'
     else
       echo '[ERROR] Numeric value is missing'
@@ -47,7 +38,7 @@ case $routine in
     fi
 
     # simple string
-    if (cat $script_dir/.env.sample | grep ^TEST_VAR_STRING | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_STRING | wc -l | grep 1 &> /dev/null); then
       echo '[OK] String value is present'
     else
       echo '[ERROR] String value is missing'
@@ -55,7 +46,7 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (cat $script_dir/.env.sample | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 &> /dev/null); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
@@ -66,7 +57,7 @@ case $routine in
     if [ "$SKIP_OP_USE" = "1" ]; then
       echo '[INFO] 1password reference is missing (skipped)'
     else
-      if (cat $script_dir/.env.sample | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 &> /dev/null); then
+      if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 &> /dev/null); then
         echo '[OK] 1password reference is present'
       else
         echo '[ERROR] 1password reference is missing'
@@ -75,15 +66,15 @@ case $routine in
     fi
 
     # clean up unless debugging is enabled
-    [ "$DEBUG" = "0" ] && rm $script_dir/.env.sample
+    [ "$DEBUG" = "0" ] && rm "$script_dir/.env.sample"
     [ "$errors" -eq "0" ] && exit 0 || exit 1
     ;;
 
   update)
     ### perform update from git
-    git -C $script_dir stash &> /dev/null # this may produce stashes, maybe reset instead?
-    git -C $script_dir checkout main &> /dev/null # switch to main branch for update
-    git -C $script_dir pull
+    git -C "$script_dir" stash &> /dev/null # this may produce stashes, maybe reset instead?
+    git -C "$script_dir" checkout main &> /dev/null # switch to main branch for update
+    git -C "$script_dir" pull
     ;;
 
   install)
@@ -101,7 +92,7 @@ case $routine in
     fi
 
     echo 'Removing global secret_tool symlink'
-    sudo rm ${SYMLINK_DIR:-/usr/local/bin}/secret_tool && echo '[DONE] Secret tool has been uninstalled' || echo '[ERROR] Failed to uninstall secret tool'
+    sudo rm "${SYMLINK_DIR:-/usr/local/bin}/secret_tool" && echo '[DONE] Secret tool has been uninstalled' || echo '[ERROR] Failed to uninstall secret tool'
     ;;
 
   *)

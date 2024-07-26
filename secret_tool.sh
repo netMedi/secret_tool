@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/bin/sh
+# shellcheck disable=SC2016
 : '
   Script: secret_tool.sh
   Purpose: Dump secrets from 1password and secret map to .env file
@@ -14,7 +15,7 @@
   Examples:
     secret_tool staging                          # dump secrets for this profile
     secret_tool dev test                         # dump secrets for these two profiles
-    VAR123='' secret_tool                        # ignore local override of this variable
+    VAR123="" secret_tool                        # ignore local override of this variable
     SECRET_MAP="~/alt-map.yml" secret_tool test  # use this map file
     INCLUDE_BLANK=1 secret_tool dev              # dump all, also empty values
     FILE_NAME_BASE="/tmp/.env" secret_tool dev   # start file name with this (create file /tmp/.env.dev)
@@ -30,30 +31,30 @@ script_dir=$(dirname "$actual_path")
 function get_file_modified_date {
   {
     # try grabbing info from git
-    file_date=$(git log -1 --pretty="format:%cI" -- $1 2> /dev/null)
-    commit=$(git log -1 --pretty="commit %H" -- $1 2> /dev/null)
+    file_date=$(git log -1 --pretty="format:%cI" -- "$1" 2> /dev/null)
+    commit=$(git log -1 --pretty="commit %H" -- "$1" 2> /dev/null)
   } || {
     # fallback to file modification date
     if [[ $(uname) == "Darwin" ]]; then
-      file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" $1)
+      file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" "$1")
     else
-      file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r $1)
+      file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r "$1")
     fi
     commit=''
   }
   modified_date_string="$file_date $commit"
   modified_date_string=${modified_date_string/T/ at }
-  echo $modified_date_string
+  echo "$modified_date_string"
 }
 
 if [ "$1" = "--version" ]; then
   st_file_name=secret_tool.sh
   [ -f "$script_dir/secret_utils.sh" ] \
-    && cd $script_dir \
+    && cd "$script_dir" \
     || st_file_name=secret_tool
 
   st_version="$(cat ./$st_file_name | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date ./$st_file_name)" || exit 1
-  echo $st_version
+  echo "$st_version"
   exit 0
 fi
 
@@ -86,7 +87,7 @@ if [ "$1" = "--update" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
     exit 1
   fi
-  $script_dir/secret_utils.sh update || exit 1
+  "$script_dir/secret_utils.sh" update || exit 1
   exit 0
 fi
 
@@ -95,7 +96,7 @@ if [ "$1" = "--test" ]; then
     echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
     exit 1
   fi
-  $script_dir/secret_utils.sh test || exit 1
+  "$script_dir/secret_utils.sh" test || exit 1
   exit 0
 fi
 
@@ -106,7 +107,7 @@ if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
 fi
 
 if [[ "$*" == *"--profiles"* ]]; then
-  yq e ".profiles | keys | .[]" $SECRET_MAP | tail -n +1 | grep -v '^--'
+  yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
   exit 0
 fi
 
@@ -125,7 +126,7 @@ fi
 
 for target_profile in $target_environments; do
   # verify that target profile exists
-  if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" $SECRET_MAP | wc -l | grep "0" &> /dev/null; then
+  if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" &> /dev/null; then
     echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
     FAILED=1
   fi
@@ -144,14 +145,14 @@ function duplicates_check {
 }
 
 # block of overridable defaults
-env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" $SECRET_MAP)
+env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" "$SECRET_MAP")
 duplicates_check "${env_variables_defaults[@]}"
 
 for target_profile in $target_environments; do
   output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
 
   # block of target environment
-  env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" $SECRET_MAP)
+  env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" "$SECRET_MAP")
 
   # list of all env variables sorted alphabetically
   env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
@@ -169,22 +170,22 @@ for target_profile in $target_environments; do
   # uncomment next line for debugging
   # echo "All env variables: ${env_variables[@]}"
 
-  echo '' > $output_file_path
+  echo '' > "$output_file_path"
 
   # content itself
   for var_name in "${env_variables[@]}"; do
     # if local env variable override is present, use that
-    var_value=$(echo "${!var_name}")
+    var_value="${!var_name}"
     if [ -n "$var_value" ]; then
-      echo "# overridden from local env: $var_name" >> $output_file_path.tmp
+      echo "# overridden from local env: $var_name" >> "$output_file_path.tmp"
     else
       # otherwise, use value from secret map
-      var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" $SECRET_MAP)
-      if [ "$(echo $var_value | cut -c1-3)" = ":::" ]; then
+      var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" "$SECRET_MAP")
+      if [ "$(echo "$var_value" | cut -c1-3)" = ":::" ]; then
         if [ "$SKIP_OP_USE" = "1" ]; then
           var_value=''
         else
-          var_value=$(op read "$(echo $var_value | cut -c4- | xargs)" 2> /dev/null)
+          var_value=$(op read "$(echo "$var_value" | cut -c4- | xargs)" 2> /dev/null)
         fi
       fi
     fi
@@ -202,28 +203,28 @@ for target_profile in $target_environments; do
           var_value="'${var_value}'"
         fi
       fi
-      echo "${var_name}=${var_value}" >> $output_file_path.tmp
+      echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
     else
       [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
     fi
   done
 
-  sort $output_file_path.tmp | uniq > $output_file_path
-  rm $output_file_path.tmp
+  sort "$output_file_path.tmp" | uniq > "$output_file_path"
+  rm "$output_file_path.tmp"
 
   # headers
-  cat <<EOF > $output_file_path
+  cat <<EOF > "$output_file_path"
 # Content type: environment variables and secrets
-# File path: $(realpath $output_file_path)
-# Map path: $(realpath $SECRET_MAP)
+# File path: $(realpath "$output_file_path")
+# Map path: $(realpath "$SECRET_MAP")
 # Profile: ${target_profile}
 # Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')
 # Secret tool version: $($actual_path --version)
-# Secret map release: $(get_file_modified_date $SECRET_MAP)
+# Secret map release: $(get_file_modified_date "$SECRET_MAP")
 
-$(cat $output_file_path)
+$(cat "$output_file_path")
 EOF
 
 done
 
-# v1.3.1
+# v1.3.2

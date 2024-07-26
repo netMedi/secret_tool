@@ -14,7 +14,7 @@ help_text="
 
 routine=$1
 
-actual_path=$(readlink -f "${BASH_SOURCE[0]}")
+actual_path=$(readlink -f "$0")
 script_dir=$(dirname "$actual_path")
 
 SYMLINK_DIR=${SYMLINK_DIR:-/usr/local/bin}
@@ -30,38 +30,38 @@ case $routine in
     "$script_dir/secret_tool.sh" sample
 
     # simple number
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_NUMBER | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_NUMBER | wc -l | grep 1 > /dev/null); then
       echo '[OK] Numeric value is present'
     else
       echo '[ERROR] Numeric value is missing'
-      ((errors++))
+      errors=$((errors + 1))
     fi
 
     # simple string
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_STRING | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_STRING | wc -l | grep 1 > /dev/null); then
       echo '[OK] String value is present'
     else
       echo '[ERROR] String value is missing'
-      ((errors++))
+      errors=$((errors + 1))
     fi
 
     # verify base profile values has been inherited
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 &> /dev/null); then
+    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 > /dev/null); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
-      ((errors++))
+      errors=$((errors + 1))
     fi
 
     # verify 1password integration is working
     if [ "$SKIP_OP_USE" = "1" ]; then
       echo '[INFO] 1password reference is missing (skipped)'
     else
-      if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 &> /dev/null); then
+      if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 > /dev/null); then
         echo '[OK] 1password reference is present'
       else
         echo '[ERROR] 1password reference is missing'
-        ((errors++))
+        errors=$((errors + 1))
       fi
     fi
 
@@ -72,14 +72,14 @@ case $routine in
 
   update)
     ### perform update from git
-    git -C "$script_dir" stash &> /dev/null # this may produce stashes, maybe reset instead?
-    git -C "$script_dir" checkout main &> /dev/null # switch to main branch for update
+    git -C "$script_dir" stash > /dev/null # this may produce stashes, maybe reset instead?
+    git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
     git -C "$script_dir" pull
     ;;
 
   install)
     ### create symlink if missing
-    command -v secret_tool &> /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
+    command -v secret_tool > /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
 
     echo 'Creating global secret_tool symlink'
     sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'

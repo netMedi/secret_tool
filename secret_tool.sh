@@ -1,5 +1,6 @@
 #!/bin/sh
-cmd_name=$(basename "$BASH_SOURCE")
+cmd_name=$(basename "$0")
+# shellcheck disable=SC2140
 help_text="
   Script: $cmd_name
   Purpose: Dump secrets from 1password and secret map to .env file
@@ -23,18 +24,19 @@ help_text="
     PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
     SKIP_OP_USE=1 $cmd_name ci                     # do not use 1password
 "
+# shellcheck enable=SC2140
 
-actual_path=$(readlink -f "${BASH_SOURCE[0]}")
+actual_path=$(readlink -f "$0")
 script_dir=$(dirname "$actual_path")
 
-function get_file_modified_date {
+get_file_modified_date() {
   {
     # try grabbing info from git
     file_date=$(git log -1 --pretty="format:%cI" -- "$1" 2> /dev/null)
     commit=$(git log -1 --pretty="commit %H" -- "$1" 2> /dev/null)
   } || {
     # fallback to file modification date
-    if [[ $(uname) == "Darwin" ]]; then
+    if [ "$(uname)" = "Darwin" ]; then
       file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" "$1")
     else
       file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r "$1")
@@ -118,21 +120,21 @@ if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] |
   export SKIP_OP_USE=1
 else
   # signin manually if 1password eval signin has not been done yet
-  op whoami 2> /dev/null &> /dev/null || eval $(op signin --account netmedi) || exit 1
+  op whoami > /dev/null 2>&1 || eval "$(op signin --account netmedi)" || exit 1
   # eval $(op signin --account netmedi); op whoami 2> /dev/null &> /dev/null || exit 1
   echo '[INFO] Extracting values...'
 fi
 
 for target_profile in $target_environments; do
   # verify that target profile exists
-  if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" &> /dev/null; then
+  if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" > /dev/null 2>&1; then
     echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
     FAILED=1
   fi
 done
 [ "$FAILED" = "1" ] && exit 1
 
-function duplicates_check {
+duplicates_check() {
   input_array=("$@")
   for ((i=0; i<${#input_array[@]}; i++)); do
     for ((j=i+1; j<${#input_array[@]}; j++)); do

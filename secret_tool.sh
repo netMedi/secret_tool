@@ -1,29 +1,28 @@
 #!/bin/sh
-# shellcheck disable=SC2016
-: '
-  Script: secret_tool.sh
+cmd_name=$(basename "$BASH_SOURCE")
+help_text="
+  Script: $cmd_name
   Purpose: Dump secrets from 1password and secret map to .env file
 
-  Usage: [OVERRIDES] secret_tool [PROFILE_NAME(S)]
+  Usage: [OVERRIDES] $cmd_name [PROFILE_NAME(S)]
   (if any dashed arguments are present, all other arguments are ignored)
-    secret_tool --version                        # print version info and exit
-    secret_tool --help                           # print help and exit
-    secret_tool --update                         # perform self-update and exit (only for full git install)
-    secret_tool --test                           # perform self-test and exit (only for full git install)
-    secret_tool --profiles                       # list all available profiles and exit
+    $cmd_name --version                        # print version info and exit
+    $cmd_name --help                           # print help and exit
+    $cmd_name --update                         # perform self-update and exit (only for full git install)
+    $cmd_name --test                           # perform self-test and exit (only for full git install)
+    $cmd_name --profiles                       # list all available profiles and exit
 
   Examples:
-    secret_tool staging                          # dump secrets for this profile
-    secret_tool dev test                         # dump secrets for these two profiles
-    VAR123="" secret_tool                        # ignore local override of this variable
-    SECRET_MAP="~/alt-map.yml" secret_tool test  # use this map file
-    INCLUDE_BLANK=1 secret_tool dev              # dump all, also empty values
-    FILE_NAME_BASE="/tmp/.env" secret_tool dev   # start file name with this (create file /tmp/.env.dev)
-    FILE_POSTFIX=".sh" secret_tool prod          # append this to file name end (.env.prod.sh)
-    PROFILES="ci test" secret_tool               # set target profiles via variable (same as `secret_tool ci test`)
-    SKIP_OP_USE=1 secret_tool ci                     # do not use 1password
-'
-HELP_LINES=${LINENO} # all lines above this one are considered help text
+    $cmd_name staging                          # dump secrets for this profile
+    $cmd_name dev test                         # dump secrets for these two profiles
+    VAR123='' $cmd_name                        # ignore local override of this variable
+    SECRET_MAP='~/alt-map.yml' $cmd_name test  # use this map file
+    INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
+    FILE_NAME_BASE="/tmp/.env" $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
+    FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
+    PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
+    SKIP_OP_USE=1 $cmd_name ci                     # do not use 1password
+"
 
 actual_path=$(readlink -f "${BASH_SOURCE[0]}")
 script_dir=$(dirname "$actual_path")
@@ -78,7 +77,7 @@ fi
 
 # print help (head of current file) if no arguments are provided
 if [ "$SHOW_HELP" = "1" ] || [ -z "$target_environments" ]; then
-  cat "${BASH_SOURCE[0]}" | head -n $HELP_LINES | tail -n +3 | sed '$d' | sed '$d'
+  echo "$help_text" | head -n -1 | tail -n +2
   exit 0
 fi
 

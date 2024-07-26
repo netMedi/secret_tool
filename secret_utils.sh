@@ -1,5 +1,5 @@
 #!/bin/sh
-: "
+help_text="
   Script: secret_utils.sh
   Purpose: Configuration utils for secret_tool
 
@@ -9,8 +9,8 @@
     ./secret_utils.sh uninstall # delete secret_tool's symlink
     ./secret_utils.sh test      # verify secret_tool's functionality
     ./secret_utils.sh update    # perform secret_tool's update
+    ./secret_utils.sh help      # show this help text
 "
-HELP_LINES=${LINENO} # all lines above this one are considered help text
 
 routine=$1
 
@@ -97,6 +97,6 @@ case $routine in
 
   *)
     ### help
-    cat "$actual_path" | head -n $HELP_LINES | tail -n +3 | sed '$d' | sed '$d'
+    echo "$help_text" | head -n -1 | tail -n +2
     ;;
 esac

@@ -45,3 +45,8 @@ References:
 - rewrite package.json commands with `dotenvx run -f ...` wrapper and make sure to include all relevant profiles that are required for command (example: `"test": "dotenvx run -f ../../.env.test -f .env.test -- jest"` - package-level script would load global defaults and package-level .env files)
 - produce .env.* files and check if all required variables are present
 - commit your changes to target project
+
+
+## Modifying secret_tool scripts
+
+After making changes verify all the scripts with shellcheck: `./.posix_verify.sh`

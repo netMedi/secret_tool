@@ -1,4 +1,34 @@
 #!/bin/sh
+FALLBACK=$(ps -p $$ -o comm=)
+
+BEST_CHOICE=1; SHELL_NAME="bash" # [!!!] WIP this line prevents forced switch to POSIX shell
+
+[ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
+
+if [ -z "$BEST_CHOICE" ]; then
+	if [ "$SHELL_NAME" = "dash" ]; then
+		BEST_CHOICE=1
+	elif command -v dash >/dev/null 2>&1; then
+		SHELL_NAME="dash"
+	elif [ "$SHELL_NAME" = "ash" ]; then
+		:
+	elif command -v ash >/dev/null 2>&1; then
+		SHELL_NAME="ash"
+	elif [ "$POSIXLY_CORRECT" = "1" ]; then
+		BEST_CHOICE=1
+	fi
+
+	# restart script with a POSIX compliant shell
+	[ "$BEST_CHOICE" = "1" ] || {
+	  export POSIXLY_CORRECT=1
+  	export SHELL_NAME
+	  export BEST_CHOICE=1
+
+	  exec $SHELL_NAME "$0" "$@"
+	}
+fi
+# --- SHELLCHECK BELOW ---
+
 cmd_name=$(basename "$0")
 # shellcheck disable=SC2140
 help_text="
@@ -19,7 +49,7 @@ help_text="
     VAR123='' $cmd_name                        # ignore local override of this variable
     SECRET_MAP='~/alt-map.yml' $cmd_name test  # use this map file
     INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
-    FILE_NAME_BASE="/tmp/.env" $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
+    FILE_NAME_BASE='/tmp/.env' $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
     PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
     SKIP_OP_USE=1 $cmd_name ci                     # do not use 1password
@@ -228,4 +258,4 @@ EOF
 
 done
 
-# v1.3.2
+# v1.3.2beta

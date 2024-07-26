@@ -1,4 +1,4 @@
 shell=sh
 
 # allow enabling directives
-disable=SC1125
+disable=SC1123,SC1125

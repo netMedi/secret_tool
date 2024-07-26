@@ -1,4 +1,32 @@
 #!/bin/sh
+
+FALLBACK=$(ps -p $$ -o comm=)
+[ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
+
+if [ -z "$BEST_CHOICE" ]; then
+	if [ "$SHELL_NAME" = "dash" ]; then
+		BEST_CHOICE=1
+	elif command -v dash >/dev/null 2>&1; then
+		SHELL_NAME="dash"
+	elif [ "$SHELL_NAME" = "ash" ]; then
+		:
+	elif command -v ash >/dev/null 2>&1; then
+		SHELL_NAME="ash"
+	elif [ "$POSIXLY_CORRECT" = "1" ]; then
+		BEST_CHOICE=1
+	fi
+
+	# restart script with a POSIX compliant shell
+	[ "$BEST_CHOICE" = "1" ] || {
+	  export POSIXLY_CORRECT=1
+  	export SHELL_NAME
+	  export BEST_CHOICE=1
+
+	  exec $SHELL_NAME "$0" "$@"
+	}
+fi
+# --- SHELLCHECK BELOW ---
+
 help_text="
   Script: secret_utils.sh
   Purpose: Configuration utils for secret_tool
@@ -30,7 +58,7 @@ case $routine in
     "$script_dir/secret_tool.sh" sample
 
     # simple number
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_NUMBER | wc -l | grep 1 > /dev/null); then
+    if (grep -q ^TEST_VAR_NUMBER "$script_dir/.env.sample"); then
       echo '[OK] Numeric value is present'
     else
       echo '[ERROR] Numeric value is missing'
@@ -38,7 +66,7 @@ case $routine in
     fi
 
     # simple string
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_STRING | wc -l | grep 1 > /dev/null); then
+    if (grep -q ^TEST_VAR_STRING "$script_dir/.env.sample"); then
       echo '[OK] String value is present'
     else
       echo '[ERROR] String value is missing'
@@ -46,7 +74,7 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_YAML_INHERITANCE_PASSED | wc -l | grep 1 > /dev/null); then
+    if (grep -q ^TEST_VAR_YAML_INHERITANCE_PASSED "$script_dir/.env.sample"); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
@@ -57,7 +85,7 @@ case $routine in
     if [ "$SKIP_OP_USE" = "1" ]; then
       echo '[INFO] 1password reference is missing (skipped)'
     else
-      if (cat "$script_dir/.env.sample" | grep ^TEST_VAR_1PASSWORD_REF | wc -l | grep 1 > /dev/null); then
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "$script_dir/.env.sample"); then
         echo '[OK] 1password reference is present'
       else
         echo '[ERROR] 1password reference is missing'

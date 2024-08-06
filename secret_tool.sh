@@ -20,7 +20,7 @@
     FILE_NAME_BASE="/tmp/.env" secret_tool dev   # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX=".sh" secret_tool prod          # append this to file name end (.env.prod.sh)
     PROFILES="ci test" secret_tool               # set target profiles via variable (same as `secret_tool ci test`)
-    SKIP_OP=1 secret_tool ci                     # do not use 1password
+    SKIP_OP_USE=1 secret_tool ci                     # do not use 1password
 '
 HELP_LINES=${LINENO} # all lines above this one are considered help text
 

@@ -6,13 +6,13 @@ The tool to contextually handle environment variables and secrets in a secure wa
 ## Requirements
 
 Hard:
-  - dash / ash / bash
-  - [yq](https://github.com/mikefarah/yq)
-  - [1password-cli](https://developer.1password.com/docs/cli/get-started/) (for handling SECRETS)
+  - dash / ash / bash - command shell
+  - [yq](https://github.com/mikefarah/yq) - YAML secret map's handling
+  - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
 
 Soft:
-  - [dotenvx](https://dotenvx.com/docs/install) (for wrapping commands only)
-  - git (for updates)
+  - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm global install !!!) - commands' wrapper
+  - git - updates
 
 References:
   - [Using 1password with netmedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)

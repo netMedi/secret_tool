@@ -55,7 +55,15 @@ case $routine in
 
     export FILE_NAME_BASE="$script_dir/.env"
     export SECRET_MAP="${SECRET_MAP:-$script_dir/secret_map.sample.yml}"
-    "$script_dir/secret_tool.sh" sample
+    TEST_VAR_LOCAL_OVERRIDE=overridden "$script_dir/secret_tool.sh" sample inherit2
+
+    # local env override
+    if (grep -q ^TEST_VAR_LOCAL_OVERRIDE='overridden' "$script_dir/.env.sample"); then
+      echo '[OK] Locally override value was used'
+    else
+      echo '[ERROR] Locally override value was ignored'
+      errors=$((errors + 1))
+    fi
 
     # simple number
     if (grep -q ^TEST_VAR_NUMBER "$script_dir/.env.sample"); then
@@ -74,7 +82,7 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (grep -q ^TEST_VAR_YAML_INHERITANCE_PASSED "$script_dir/.env.sample"); then
+    if (grep -q ^TEST_VAR_INHERITANCE_1=1 "$script_dir/.env.inherit2"); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
@@ -94,7 +102,7 @@ case $routine in
     fi
 
     # clean up unless debugging is enabled
-    [ "$DEBUG" = "0" ] && rm "$script_dir/.env.sample"
+    [ "$DEBUG" = "0" ] && rm "$script_dir/.env.sample" "$script_dir/.env.inherit2"
     [ "$errors" -eq "0" ] && exit 0 || exit 1
     ;;
 

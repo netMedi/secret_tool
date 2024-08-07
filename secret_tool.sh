@@ -149,9 +149,39 @@ fi
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
   export SKIP_OP_USE=1
 else
-  # signin manually if 1password eval signin has not been done yet
-  op whoami > /dev/null 2>&1 || eval "$(op signin --account netmedi)" || exit 1
-  # eval $(op signin --account netmedi); op whoami 2> /dev/null &> /dev/null || exit 1
+  [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
+    echo '1password login confirmed'
+  } || {
+    echo 'trying to log in to 1password...'
+    xyn='y'
+    # signin manually if 1password eval signin has not been done yet
+    while [ "$xyn" = "y" ]; do
+      op whoami > /dev/null 2>&1 \
+        || OP_VAL=$(op signin --account netmedi -f | head -n 1) \
+        || { echo "$OP_VAL"; xyn='y'; }
+
+      OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
+      [ -n "$OP_SESSION_EVAL" ] && {
+        eval "$(echo $OP_SESSION_EVAL)"
+        xyn=''
+      }
+
+      if [ "$xyn" = "y" ]; then
+        echo "Do you want to retry?"
+        echo "  Y (or Enter) = yes, retry"
+        echo "  n = no, continue without 1password"
+        echo "  x - just exit"
+        read -n 1 xyn
+        case $xyn in
+          [Yy]* ) xyn='y'; echo "retrying to log in to 1password...";;
+          [Nn]* ) SKIP_OP_USE=1;;
+          [Xx]* ) exit 1;;
+          * ) [ -z "$xyn" ] && xyn='y'; echo 'Please answer "y", "n", or "x" (single letter, no quotes)';;
+        esac
+      fi
+    done
+  }
+
   echo '[INFO] Extracting values...'
 fi
 

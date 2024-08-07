@@ -33,7 +33,7 @@ cmd_name=$(basename "$0")
 # shellcheck disable=SC2140
 help_text="
   Script: $cmd_name
-  Purpose: Dump secrets from 1password and secret map to .env file
+  Purpose: Produce file(s) with environment variables and secrets from 1password using secret map
 
   Usage: [OVERRIDES] $cmd_name [PROFILE_NAME(S)]
   (if any dashed arguments are present, all other arguments are ignored)
@@ -42,6 +42,9 @@ help_text="
     $cmd_name --update                         # perform self-update and exit (only for full git install)
     $cmd_name --test                           # perform self-test and exit (only for full git install)
     $cmd_name --profiles                       # list all available profiles and exit
+    $cmd_name --profiles                       # list all available profiles and exit
+    $cmd_name -- .env.test:MY_VAR=123          # express dump variable into file (append to existing or create new)
+    $cmd_name test -- ./.env.test:MY_VAR=123     # extract profile and append override to it
 
   Examples:
     $cmd_name staging                          # dump secrets for this profile
@@ -52,7 +55,7 @@ help_text="
     FILE_NAME_BASE='/tmp/.env' $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
     PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
-    SKIP_OP_USE=1 $cmd_name ci                     # do not use 1password
+    SKIP_OP_USE=1 $cmd_name ci                 # do not use 1password
 "
 # shellcheck enable=SC2140
 
@@ -78,6 +81,11 @@ get_file_modified_date() {
   echo "$modified_date_string"
 }
 
+show_help() {
+  echo "$help_text" | head -n -1 | tail -n +2
+  exit 0
+}
+
 if [ "$1" = "--version" ]; then
   st_file_name=secret_tool.sh
   [ -f "$script_dir/secret_utils.sh" ] \
@@ -95,23 +103,11 @@ allowed_boolean_regexp='^(true|false)$'
 ## All that YAML supports (https://yaml.org/type/bool.html):
 # allowed_boolean_regexp='^(y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$'
 
-[[ "$*" == *"--help"* ]] && SHOW_HELP=1
+[ "$1" = "--help" ] && show_help
 
 SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
 FILE_NAME_BASE=${FILE_NAME_BASE:-./.env} # this can be also be path
 FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
-
-if [ -n "$PROFILES" ]; then
-  target_environments=$PROFILES
-else
-  target_environments=${@:-''}
-fi
-
-# print help (head of current file) if no arguments are provided
-if [ "$SHOW_HELP" = "1" ] || [ -z "$target_environments" ]; then
-  echo "$help_text" | head -n -1 | tail -n +2
-  exit 0
-fi
 
 if [ "$1" = "--update" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then
@@ -131,150 +127,172 @@ if [ "$1" = "--test" ]; then
   exit 0
 fi
 
-if [ -n "$SECRET_MAP" ] && [ ! -f "$SECRET_MAP" ]; then
-  echo "[ERROR] Secret map file not found: $SECRET_MAP"
-  echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
-  exit 1
-fi
-
-if [[ "$*" == *"--profiles"* ]]; then
-  yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
-  exit 0
-fi
+__=${@:-''}
+express_dump_commands="${__#*--}"
+[ "$express_dump_commands" = "$__" ] && express_dump_commands=""
 
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ]; then
   export PROFILES="ci"
 fi
 
-if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ] || [[ "$*" == *"--help"* ]] || [[ "$*" == *"--profiles"* ]]; then
-  export SKIP_OP_USE=1
-else
-  [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
-    echo '1password login confirmed'
-  } || {
-    echo 'trying to log in to 1password...'
-    xyn='y'
-    # signin manually if 1password eval signin has not been done yet
-    while [ "$xyn" = "y" ]; do
-      op whoami > /dev/null 2>&1 \
-        || OP_VAL=$(op signin --account netmedi -f | head -n 1) \
-        || { echo "$OP_VAL"; xyn='y'; }
+if [ -n "$PROFILES" ]; then
+  __=$PROFILES
+fi
+target_profiles="${__%%--*}"
+[ "${__#--}" != "$__" ] && target_profiles=""
 
-      OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
-      [ -n "$OP_SESSION_EVAL" ] && {
-        eval "$(echo $OP_SESSION_EVAL)"
-        xyn=''
-      }
+# print help (head of current file) if no arguments are provided
+[ -z "$express_dump_commands" ] && [ -z "$target_profiles" ] && show_help
 
-      if [ "$xyn" = "y" ]; then
-        echo "Do you want to retry?"
-        echo "  Y (or Enter) = yes, retry"
-        echo "  n = no, continue without 1password"
-        echo "  x - just exit"
-        read -n 1 xyn
-        case $xyn in
-          [Yy]* ) xyn='y'; echo "retrying to log in to 1password...";;
-          [Nn]* ) SKIP_OP_USE=1;;
-          [Xx]* ) exit 1;;
-          * ) [ -z "$xyn" ] && xyn='y'; echo 'Please answer "y", "n", or "x" (single letter, no quotes)';;
-        esac
-      fi
+extract_value_from_op_ref() {
+  var_value="$1"
+  if [ "$(echo "$var_value" | cut -c1-3)" = ":::" ]; then
+    if [ "$SKIP_OP_USE" = "1" ]; then
+      var_value=''
+    else
+      var_value=$(op read "$(echo "$var_value" | cut -c4- | xargs)" 2> /dev/null)
+    fi
+  fi
+  echo "$var_value"
+}
+
+if [ -n "$target_profiles" ]; then
+  if [ -n "$SECRET_MAP" ] \
+    && [ ! -f "$SECRET_MAP" ]; then
+    echo "[ERROR] Secret map file not found: $SECRET_MAP"
+    echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
+    exit 1
+  fi
+
+  if [ "$1" = "--profiles" ]; then
+    yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
+    exit 0
+  fi
+
+  if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ]; then
+    export SKIP_OP_USE=1
+  else
+    [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
+      echo '[INFO] 1password login confirmed'
+    } || {
+      echo '[INFO] Trying to log in to 1password...'
+      xyn='y'
+      # signin manually if 1password eval signin has not been done yet
+      while [ "$xyn" = "y" ]; do
+        op whoami > /dev/null 2>&1 \
+          || OP_VAL=$(op signin --account netmedi -f | head -n 1) \
+          || { echo "$OP_VAL"; xyn='y'; }
+
+        OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
+        [ -n "$OP_SESSION_EVAL" ] && {
+          eval "$(echo $OP_SESSION_EVAL)"
+          xyn=''
+        }
+
+        if [ "$xyn" = "y" ]; then
+          echo "Do you want to retry?"
+          echo "  Y (or Enter) = yes, retry"
+          echo "  n = no, continue without 1password"
+          echo "  x - just exit"
+          read -n 1 xyn
+          case $xyn in
+            [Yy]* ) xyn='y'; echo "retrying to log in to 1password...";;
+            [Nn]* ) SKIP_OP_USE=1;;
+            [Xx]* ) exit 1;;
+            * ) [ -z "$xyn" ] && xyn='y'; echo 'Please answer "y", "n", or "x" (single letter, no quotes)';;
+          esac
+        fi
+      done
+    }
+
+    echo
+    echo '[INFO] Extracting values...'
+  fi
+
+  for target_profile in $target_profiles; do
+    # verify that target profile exists
+    if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" > /dev/null 2>&1; then
+      echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
+      FAILED=1
+    fi
+  done
+  [ "$FAILED" = "1" ] && exit 1
+
+  duplicates_check() {
+    input_array=("$@")
+    for ((i=0; i<${#input_array[@]}; i++)); do
+      for ((j=i+1; j<${#input_array[@]}; j++)); do
+        if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
+          echo "[WARN] Duplicate keys detected: ${input_array[i]}"
+        fi
+      done
     done
   }
 
-  echo '[INFO] Extracting values...'
-fi
+  # block of overridable defaults
+  env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" "$SECRET_MAP")
+  duplicates_check "${env_variables_defaults[@]}"
 
-for target_profile in $target_environments; do
-  # verify that target profile exists
-  if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" > /dev/null 2>&1; then
-    echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
-    FAILED=1
-  fi
-done
-[ "$FAILED" = "1" ] && exit 1
+  for target_profile in $target_profiles; do
+    output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
 
-duplicates_check() {
-  input_array=("$@")
-  for ((i=0; i<${#input_array[@]}; i++)); do
-    for ((j=i+1; j<${#input_array[@]}; j++)); do
-      if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
-        echo "[WARN] Duplicate keys detected: ${input_array[i]}"
+    # block of target environment
+    env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" "$SECRET_MAP")
+
+    # list of all env variables sorted alphabetically
+    env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
+    # declare -A skip_vars=(['<<']=1)
+    clean_env=()
+    for i in "${env_variables[@]}"; do
+      if ! [ "$i" = '<<' ]; then
+        clean_env+=("$i")
+      fi
+      # skip_vars["$i"]=1
+    done
+    IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
+
+
+    # uncomment next line for debugging
+    # echo "All env variables: ${env_variables[@]}"
+
+    echo '' > "$output_file_path"
+
+    # content itself
+    for var_name in "${env_variables[@]}"; do
+      # if local env variable override is present, use that
+      var_value="${!var_name}"
+      if [ -n "$var_value" ]; then
+        echo "# overridden from local env: $var_name" >> "$output_file_path.tmp"
+      else
+        # otherwise, use value from secret map
+        var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" "$SECRET_MAP")
+        extract_value_from_op_ref "$var_value" > /dev/null
+      fi
+
+      # if we are including blank values, write those to file
+      if [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
+        re_num='^[0-9]+$'
+        re_yaml_bool=$allowed_boolean_regexp
+        if ! [[ $var_value =~ $re_num ]] && ! [[ $var_value =~ $re_yaml_bool ]]; then
+          # the strings that are not numbers or booleans are quoted
+          if [[ $var_value = *\$* ]]; then
+            var_value="\"${var_value}\""
+          else
+            # else surround non-numeric values with single quotes
+            var_value="'${var_value}'"
+          fi
+        fi
+        echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
+      else
+        [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
       fi
     done
-  done
-}
 
-# block of overridable defaults
-env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" "$SECRET_MAP")
-duplicates_check "${env_variables_defaults[@]}"
+    sort "$output_file_path.tmp" | uniq > "$output_file_path"
+    rm "$output_file_path.tmp"
 
-for target_profile in $target_environments; do
-  output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
-
-  # block of target environment
-  env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" "$SECRET_MAP")
-
-  # list of all env variables sorted alphabetically
-  env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
-  # declare -A skip_vars=(['<<']=1)
-  clean_env=()
-  for i in "${env_variables[@]}"; do
-    if ! [ "$i" = '<<' ]; then
-      clean_env+=("$i")
-    fi
-    # skip_vars["$i"]=1
-  done
-  IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
-
-
-  # uncomment next line for debugging
-  # echo "All env variables: ${env_variables[@]}"
-
-  echo '' > "$output_file_path"
-
-  # content itself
-  for var_name in "${env_variables[@]}"; do
-    # if local env variable override is present, use that
-    var_value="${!var_name}"
-    if [ -n "$var_value" ]; then
-      echo "# overridden from local env: $var_name" >> "$output_file_path.tmp"
-    else
-      # otherwise, use value from secret map
-      var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" "$SECRET_MAP")
-      if [ "$(echo "$var_value" | cut -c1-3)" = ":::" ]; then
-        if [ "$SKIP_OP_USE" = "1" ]; then
-          var_value=''
-        else
-          var_value=$(op read "$(echo "$var_value" | cut -c4- | xargs)" 2> /dev/null)
-        fi
-      fi
-    fi
-
-    # if we are including blank values, write those to file
-    if [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
-      re_num='^[0-9]+$'
-      re_yaml_bool=$allowed_boolean_regexp
-      if ! [[ $var_value =~ $re_num ]] && ! [[ $var_value =~ $re_yaml_bool ]]; then
-        # the strings that are not numbers or booleans are quoted
-        if [[ $var_value = *\$* ]]; then
-          var_value="\"${var_value}\""
-        else
-          # else surround non-numeric values with single quotes
-          var_value="'${var_value}'"
-        fi
-      fi
-      echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
-    else
-      [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
-    fi
-  done
-
-  sort "$output_file_path.tmp" | uniq > "$output_file_path"
-  rm "$output_file_path.tmp"
-
-  # headers
-  cat <<EOF > "$output_file_path"
+    # headers
+    cat <<EOF > "$output_file_path"
 # Content type: environment variables and secrets
 # File path: $(realpath "$output_file_path")
 # Map path: $(realpath "$SECRET_MAP")
@@ -286,6 +304,20 @@ for target_profile in $target_environments; do
 $(cat "$output_file_path")
 EOF
 
+  done
+fi
+
+for var_value in $express_dump_commands; do
+  var_path=${var_value%%=*}
+  var_value=${var_value#*=}
+
+
+  # split var_path into two parts: part before ":" is a file path, part after ":" is a variable name
+  file_path=${var_path%%:*}
+  var_path=${var_path#*:}
+
+  dirname "$file_path" | xargs mkdir -p > /dev/null 2>&1
+  echo "$var_path=$(extract_value_from_op_ref "$var_value")" >> "$file_path"
 done
 
-# v1.3.2beta
+# v1.4beta

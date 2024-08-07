@@ -53,15 +53,26 @@ case $routine in
     DEBUG=${DEBUG:-0}
     errors=0
 
+    echo "Running secret_tool's self-tests"
+    echo
+
     export FILE_NAME_BASE="$script_dir/.env"
     export SECRET_MAP="${SECRET_MAP:-$script_dir/secret_map.sample.yml}"
     TEST_VAR_LOCAL_OVERRIDE=overridden "$script_dir/secret_tool.sh" sample inherit2
 
-    # local env override
-    if (grep -q ^TEST_VAR_LOCAL_OVERRIDE='overridden' "$script_dir/.env.sample"); then
-      echo '[OK] Locally override value was used'
+    dotenvx_version=$(npm list -g | grep @dotenvx/dotenvx | cut -d'@' -f2-)
+    if [ -n "$dotenvx_version" ]; then
+      echo "[OK] Dotenvx is installed globally: $dotenvx_version"
     else
-      echo '[ERROR] Locally override value was ignored'
+      echo '[ERROR] Dotenvx is NOT installed globally'
+      errors=$((errors + 1))
+    fi
+
+    # local env override
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "$script_dir/.env.sample"); then
+      echo '[OK] Locally overridden value was used'
+    else
+      echo '[ERROR] Locally overridden value was ignored'
       errors=$((errors + 1))
     fi
 
@@ -100,6 +111,17 @@ case $routine in
         errors=$((errors + 1))
       fi
     fi
+
+    # verify that secret_tool is available in PATH
+    if (command -v secret_tool > /dev/null); then
+      echo '[OK] secret_tool is available in PATH'
+    else
+      echo '[ERROR] secret_tool is NOT available in PATH'
+      errors=$((errors + 1))
+    fi
+
+    echo
+    "$script_dir/secret_tool.sh" --version
 
     # clean up unless debugging is enabled
     [ "$DEBUG" = "0" ] && rm "$script_dir/.env.sample" "$script_dir/.env.inherit2"

@@ -70,6 +70,8 @@ The reason express commands exist is to allow batch extraction in complex scenar
 - produce .env.* files and check if all required variables are present
 - commit your changes to target project
 
+
+<!--
 ### PROFILE inheritance
 
 YAML has an inheritance feature built in. You do not have to redeclare the repeating values again if they are already defined in existing profile. For example, if you need to create a close derivative of "dev" profile adding a few extra variables on top, you may inherit existing ones using anchor:
@@ -89,6 +91,7 @@ dev-extended:
 ```
 
 Notice how profile to derive from is marked with `&dev` and the new profile has `<<: *dev` essentially including existing profile as a template to modify and extend.
+-->
 
 
 ## Modifying secret_tool scripts

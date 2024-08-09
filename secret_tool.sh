@@ -205,7 +205,7 @@ produce_configmap() {
     local json="$3"
 
     # Replace double underscores with dots
-    key=$(echo "$key" | sed 's/__/\./g')
+    key="${key//__/.}"
 
     # Use yq to set the value in the nested structure
     json=$(echo "$json" | yq eval ".${key} = $value" -)
@@ -218,6 +218,15 @@ produce_configmap() {
     # Split the line into key and value
     key=$(echo "$line" | cut -d '=' -f 1)
     value=$(echo "$line" | cut -d '=' -f 2-)
+
+    # Remove surrounding single or double quotes from the value
+    if [ "${value#\"}" != "$value" ] && [ "${value%\"}" != "$value" ]; then
+      value="${value#\"}"
+      value="${value%\"}"
+    elif [ "${value#\'}" != "$value" ] && [ "${value%\'}" != "$value" ]; then
+      value="${value#\'}"
+      value="${value%\'}"
+    fi
 
     # Handle numeric and string values correctly
     if [[ "$value" =~ ^[0-9]+$ ]]; then
@@ -354,33 +363,62 @@ if [ -n "$target_profiles" ]; then
       fi
     done
 
+    header_1='Content type'
+    value_1='environment variables and secrets'
+
+    header_2='File path'
+    value_2="$(realpath "$1")"
+
+    header_3='Map path'
+    value_3="$(realpath "$SECRET_MAP")"
+
+    header_4='Profile'
+    value_4="${target_profile}"
+
+    header_5='Generated via secret_tool'
+    value_5="$(date +'%Y-%m-%d at %H:%M:%S%:z')"
+
+    header_6='Secret tool version'
+    value_6="$($actual_path --version)"
+
+    header_7='Secret map release'
+    value_7="$(get_file_modified_date "$SECRET_MAP")"
+
+    prepend_headers() {
+      cat <<EOF > "$1"
+# ${header_1}: ${value_1}
+# ${header_2}: ${value_2}
+# ${header_3}: ${value_3}
+# ${header_4}: ${value_4}
+# ${header_5}: ${value_5}
+# ${header_6}: ${value_6}
+# ${header_7}: ${value_7}
+
+$(cat "$1")
+EOF
+    }
+
     case "$FORMAT" in
       yml|yaml)
         produce_configmap "$output_file_path.tmp" yml > "$output_file_path.yml"
+        prepend_headers "$output_file_path.yml"
         ;;
       json)
         produce_configmap "$output_file_path.tmp" json > "$output_file_path.json"
+
+        yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path.json" -i
+
+        # sort top level json keys alphabetically with yq
+        yq eval 'sort_keys(.)' "$output_file_path.json" -i
         ;;
       *)
         FORMAT='envfile'
         sort "$output_file_path.tmp" | uniq > "$output_file_path"
-
         echo '' > "$output_file_path"
-
-        # headers
-        cat <<EOF > "$output_file_path"
-# Content type: environment variables and secrets
-# File path: $(realpath "$output_file_path")
-# Map path: $(realpath "$SECRET_MAP")
-# Profile: ${target_profile}
-# Generated via secret_tool on $(date +'%Y-%m-%d at %H:%M:%S%:z')
-# Secret tool version: $($actual_path --version)
-# Secret map release: $(get_file_modified_date "$SECRET_MAP")
-
-$(cat "$output_file_path")
-EOF
-          ;;
+        prepend_headers "$output_file_path"
+        ;;
     esac
+
 
     rm "$output_file_path.tmp"
   done

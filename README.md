@@ -30,7 +30,23 @@ References:
 - perform `secret_tool <profile_name(s)>` to produce .env.* file(s)
 
 
-## Express dump commands
+## Format converter
+
+secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable.
+
+Examples:
+```sh
+  # extract secrets into a JSON file (.env.dev.json)
+  FORMAT=json secret_tool dev
+
+  # extract secrets into a YAML file (./config/super_mega_test.yml)
+  FILE_NAME_BASE=./config/super_mega_ FORMAT=yml secret_tool test
+
+```
+
+<!--
+
+## Express set command
 
 Sometimes you may need to extract just one secret or append something to environment file that you do not to regenerate as a whole.
 That can be done with an express dump feature using ` -- ` (double dash command). You can do it as a single operation or have multiple targets, also can be chained to an existing extraction command. If target file is not present yet, it will be created.
@@ -52,6 +68,8 @@ secret_tool -- "./.env.whatever:SOMEVAR=:::op://Shared/i am an expert in machine
 ```
 
 The reason express commands exist is to allow batch extraction in complex scenarios and avoid repetitive 1password auth checks.
+
+-->
 
 
 ## Last time [uninstall]

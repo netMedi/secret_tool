@@ -52,7 +52,7 @@ help_text="
     VAR123='' $cmd_name                        # ignore local override of this variable
     SECRET_MAP='~/alt-map.yml' $cmd_name test  # use this map file
     INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
-    FILE_NAME_BASE='/tmp/.env' $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
+    FILE_NAME_BASE='/tmp/.env.' $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
     PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
     SKIP_OP_USE=1 $cmd_name ci                 # do not use 1password
@@ -105,9 +105,11 @@ allowed_boolean_regexp='^(true|false)$'
 
 [ "$1" = "--help" ] && show_help
 
-# FORMAT=${FORMAT:-envfile}
+FORMAT=${FORMAT:-envfile}
+FORMAT=$(echo "$FORMAT" | tr '[:upper:]' '[:lower:]')
+
 SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
-FILE_NAME_BASE=${FILE_NAME_BASE:-./.env} # this can be also be path
+FILE_NAME_BASE=${FILE_NAME_BASE:-./.env.} # this can be also be path
 FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
 
 if [ "$1" = "--update" ]; then
@@ -174,7 +176,9 @@ substr_in_str() {
 
 produce_configmap() {
   env_file="$1"
-  FORMAT="${2:-json}"
+  FORMAT="$2"
+
+  [ "$FORMAT" != "yml" ] && [ "$FORMAT" != "yaml" ] && FORMAT='json'
   extension="${env_file##*.}"
 
   if [ ! -f "$env_file" ]; then
@@ -298,7 +302,7 @@ if [ -n "$target_profiles" ]; then
   duplicates_check "${env_variables_defaults[@]}"
 
   for target_profile in $target_profiles; do
-    output_file_path="${FILE_NAME_BASE}.${target_profile}${FILE_POSTFIX}"
+    output_file_path="${FILE_NAME_BASE}${target_profile}${FILE_POSTFIX}"
 
     # block of target environment
     env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" "$SECRET_MAP")
@@ -318,8 +322,6 @@ if [ -n "$target_profiles" ]; then
 
     # uncomment next line for debugging
     # echo "All env variables: ${env_variables[@]}"
-
-    echo '' > "$output_file_path"
 
     # content itself
     for var_name in "${env_variables[@]}"; do
@@ -352,11 +354,21 @@ if [ -n "$target_profiles" ]; then
       fi
     done
 
-    sort "$output_file_path.tmp" | uniq > "$output_file_path"
-    rm "$output_file_path.tmp"
+    case "$FORMAT" in
+      yml|yaml)
+        produce_configmap "$output_file_path.tmp" yml > "$output_file_path.yml"
+        ;;
+      json)
+        produce_configmap "$output_file_path.tmp" json > "$output_file_path.json"
+        ;;
+      *)
+        FORMAT='envfile'
+        sort "$output_file_path.tmp" | uniq > "$output_file_path"
 
-    # headers
-    cat <<EOF > "$output_file_path"
+        echo '' > "$output_file_path"
+
+        # headers
+        cat <<EOF > "$output_file_path"
 # Content type: environment variables and secrets
 # File path: $(realpath "$output_file_path")
 # Map path: $(realpath "$SECRET_MAP")
@@ -367,7 +379,10 @@ if [ -n "$target_profiles" ]; then
 
 $(cat "$output_file_path")
 EOF
+          ;;
+    esac
 
+    rm "$output_file_path.tmp"
   done
 fi
 

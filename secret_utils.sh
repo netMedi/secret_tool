@@ -167,7 +167,9 @@ case $routine in
     } || {
       git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
     }
-    git -C "$script_dir" pull 2> /dev/null
+    git -C "$script_dir" pull > /dev/null
+    echo
+
     "$script_dir/secret_tool.sh" --version
     exit 0
     ;;

@@ -39,10 +39,18 @@ There are a couple of automated ways to update secret_tool.
 2. Exact tag:
 
 ```sh
-  # latest revision of main branch
+  # install exact release tag of main branch
   VERSION=v1.3.1 secret_tool --update
 ```
 
+3. The latest tag (stable)
+```sh
+  # install the latest tagged release (stable)
+  VERSION=latest secret_tool --update
+
+  # or
+  VERSION=stable secret_tool --update
+```
 
 ## Running with up-to-date secrets
 

@@ -105,6 +105,7 @@ allowed_boolean_regexp='^(true|false)$'
 
 [ "$1" = "--help" ] && show_help
 
+# FORMAT=${FORMAT:-envfile}
 SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
 FILE_NAME_BASE=${FILE_NAME_BASE:-./.env} # this can be also be path
 FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
@@ -141,6 +142,17 @@ fi
 target_profiles="${__%%--*}"
 [ "${__#--}" != "$__" ] && target_profiles=""
 
+if [ -n "$target_profiles" ] && [ ! -f "$SECRET_MAP" ]; then
+  echo "[ERROR] Secret map file not found: $SECRET_MAP"
+  echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
+  exit 1
+fi
+
+if [ "$1" = "--profiles" ]; then
+  yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
+  exit 0
+fi
+
 # print help (head of current file) if no arguments are provided
 [ -z "$express_dump_commands" ] && [ -z "$target_profiles" ] && show_help
 
@@ -156,19 +168,71 @@ extract_value_from_op_ref() {
   echo "$var_value"
 }
 
-if [ -n "$target_profiles" ]; then
-  if [ -n "$SECRET_MAP" ] \
-    && [ ! -f "$SECRET_MAP" ]; then
-    echo "[ERROR] Secret map file not found: $SECRET_MAP"
-    echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
+substr_in_str() {
+  echo "$1" | grep -q "$2"
+}
+
+produce_configmap() {
+  env_file="$1"
+  FORMAT="${2:-json}"
+  extension="${env_file##*.}"
+
+  if [ ! -f "$env_file" ]; then
+    echo "[ERROR] File not found: $env_file"
     exit 1
   fi
 
-  if [ "$1" = "--profiles" ]; then
-    yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
+  [ "$extension" = "json" ] && {
+    cat "$env_file"
     exit 0
-  fi
+  }
 
+  [ "$extension" = "yml" ] || [ "$extension" = "yaml" ] && {
+    yq -o=json '.' "$env_file"
+    exit 0
+  }
+
+  yq_object="{}"
+
+  # Function to build nested objects using dots as delimiters
+  build_nested_object() {
+    local key="$1"
+    local value="$2"
+    local json="$3"
+
+    # Replace double underscores with dots
+    key=$(echo "$key" | sed 's/__/\./g')
+
+    # Use yq to set the value in the nested structure
+    json=$(echo "$json" | yq eval ".${key} = $value" -)
+
+    echo "$json"
+  }
+
+  # Read each line from the environment file
+  while IFS= read -r line; do
+    # Split the line into key and value
+    key=$(echo "$line" | cut -d '=' -f 1)
+    value=$(echo "$line" | cut -d '=' -f 2-)
+
+    # Handle numeric and string values correctly
+    if [[ "$value" =~ ^[0-9]+$ ]]; then
+      yq_object=$(build_nested_object "$key" "$value" "$yq_object")
+    else
+      yq_object=$(build_nested_object "$key" "\"$value\"" "$yq_object")
+    fi
+
+  done < "$env_file"
+
+  # Print the final JSON object
+  if [ "$FORMAT" = "yml" ] || [ "$FORMAT" = "yaml" ]; then
+    echo "$yq_object"
+  elif [ "$FORMAT" = "json" ]; then
+    echo "$yq_object" | yq -o=json '.'
+  fi
+}
+
+if [ -n "$target_profiles" ]; then
   if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ]; then
     export SKIP_OP_USE=1
   else
@@ -309,15 +373,35 @@ fi
 
 for var_value in $express_dump_commands; do
   var_path=${var_value%%=*}
-  var_value=${var_value#*=}
 
+  substr_in_str "$var_value" '=' && {
+    mode='set'
+    var_value=${var_value#*=}
+  } || {
+    mode='get'
+    var_value=''
+  }
 
-  # split var_path into two parts: part before ":" is a file path, part after ":" is a variable name
   file_path=${var_path%%:*}
-  var_path=${var_path#*:}
+  substr_in_str "$var_path" ':' \
+    && var_path=${var_path#*:} \
+    || var_path=''
 
-  dirname "$file_path" | xargs mkdir -p > /dev/null 2>&1
-  echo "$var_path=$(extract_value_from_op_ref "$var_value")" >> "$file_path"
+  [ "$mode" = "set" ] && {
+    # set mode writes data to file
+    dirname "$file_path" | xargs mkdir -p > /dev/null 2>&1
+    echo "$var_path=$(extract_value_from_op_ref "$var_value")" >> "$file_path"
+  } || {
+    # get mode reads data from file
+    if [ -f "$file_path" ]; then
+      [ -n "$var_path" ] \
+        && grep "^$var_path=" "$file_path" | cut -d'=' -f2 \
+        || produce_configmap "$file_path" "${FORMAT:-json}"
+    else
+      echo "[ERROR] File not found: $file_path"
+      exit 1
+    fi
+  }
 done
 
 # v1.4beta

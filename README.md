@@ -70,6 +70,9 @@ The reason express commands exist is to allow batch extraction in complex scenar
 - produce .env.* files and check if all required variables are present
 - commit your changes to target project
 
+### [!] Avoid using dots `[.]` in profile names. You can use alphanum characters `[A-z0-9]`, dash `[-]` and underscore `[_]`.
+
+Profiles starting with double-dash are considered internal templates and therefore are not displayed for `secret_tool --profiles`.
 
 <!--
 ### PROFILE inheritance

@@ -17,11 +17,31 @@ Soft:
 References:
   - [Using 1password with netmedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
 
+
 ## First time [install]
 
 - clone this project's repo
 - cd into this project's root dir
 - `./secret_utils.sh install`
+
+
+## Update
+
+There are a couple of automated ways to update secret_tool.
+
+1. The latest revision of main:
+
+```sh
+  # latest revision of main branch
+  secret_tool --update
+```
+
+2. Exact tag:
+
+```sh
+  # latest revision of main branch
+  VERSION=v1.3.1 secret_tool --update
+```
 
 
 ## Running with up-to-date secrets

@@ -114,10 +114,13 @@ FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
 
 if [ "$1" = "--update" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[WARN] Standalone installation (secret_utils.sh is not available). Self update is not possible.'
-    exit 1
+    echo '[INFO] Standalone installation (secret_utils.sh is not available). Attempting update in-place...'
+
+    [ -z "$VERSION" ] && VERSION="$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r '.tag_name')"
+    sudo wget -qO "$actual_path" "https://raw.githubusercontent.com/netMedi/secret_tool/$VERSION/secret_tool.sh" || exit 1
+    sudo chmod +x /usr/local/bin/secret_tool && exit 0
   fi
-  "$script_dir/secret_utils.sh" update || exit 1
+  VERSION=$VERSION "$script_dir/secret_utils.sh" update || exit 1
   exit 0
 fi
 

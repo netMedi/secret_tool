@@ -157,8 +157,19 @@ case $routine in
   update)
     ### perform update from git
     git -C "$script_dir" stash > /dev/null # this may produce stashes, maybe reset instead?
-    git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
-    git -C "$script_dir" pull
+
+    [ -n "$VERSION" ] && {
+      git -C "$script_dir" fetch --tags > /dev/null
+      if [ "$VERSION" = "stable" ] || [ "$VERSION" = "latest" ]; then
+        VERSION=$(git ls-remote --tags origin | cut --delimiter='/' --fields=3 | sort -r | grep "^v" | head -n 1)
+      fi
+      git -C "$script_dir" checkout "$VERSION" > /dev/null
+    } || {
+      git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
+    }
+    git -C "$script_dir" pull 2> /dev/null
+    "$script_dir/secret_tool.sh" --version
+    exit 0
     ;;
 
   install)

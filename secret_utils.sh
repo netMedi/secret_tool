@@ -64,12 +64,16 @@ case $routine in
         || eval "$(op signin --account netmedi)"
     fi
 
-    export FILE_NAME_BASE="$script_dir/tests/.env"
-    SECRET_MAP="${SECRET_MAP:-$script_dir/tests/secret_map.yml}"  TEST_VAR_LOCAL_OVERRIDE=overridden "$script_dir/secret_tool.sh" 'simple' 'inherit2'
+    export FILE_NAME_BASE="$script_dir/tests/.env."
+    SECRET_MAP="${SECRET_MAP:-$script_dir/tests/secret_map.yml}" \
+      TEST_VAR_LOCAL_OVERRIDE=overridden \
+        "$script_dir/secret_tool.sh" \
+          'simple' \
+          'inherit2'
 
-    FORMAT=json "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "$FILE_NAME_BASE.configmap.json"
+    FORMAT=json "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.json"
 
-    FORMAT=yml "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "$FILE_NAME_BASE.configmap.yml"
+    FORMAT=yml "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.yml"
 
     dotenvx_version=$(npm list -g | grep @dotenvx/dotenvx | cut -d'@' -f2-)
     if [ -n "$dotenvx_version" ]; then
@@ -80,7 +84,7 @@ case $routine in
     fi
 
     # local env override
-    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "$FILE_NAME_BASE.simple"); then
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "${FILE_NAME_BASE}simple"); then
       echo '[OK] Locally overridden value was used'
     else
       echo '[ERROR] Locally overridden value was ignored'
@@ -88,7 +92,7 @@ case $routine in
     fi
 
     # simple number
-    if (grep -q ^TEST_VAR_NUMBER "$FILE_NAME_BASE.simple"); then
+    if (grep -q ^TEST_VAR_NUMBER "${FILE_NAME_BASE}simple"); then
       echo '[OK] Numeric value is present'
     else
       echo '[ERROR] Numeric value is missing'
@@ -96,7 +100,7 @@ case $routine in
     fi
 
     # simple string
-    if (grep -q ^TEST_VAR_STRING "$FILE_NAME_BASE.simple"); then
+    if (grep -q ^TEST_VAR_STRING "${FILE_NAME_BASE}simple"); then
       echo '[OK] String value is present'
     else
       echo '[ERROR] String value is missing'
@@ -104,7 +108,7 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (grep -q ^TEST_VAR_INHERITANCE_1=1 "$FILE_NAME_BASE.inherit2"); then
+    if (grep -q ^TEST_VAR_INHERITANCE_1=1 "${FILE_NAME_BASE}inherit2"); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
@@ -115,7 +119,7 @@ case $routine in
     if [ "$SKIP_OP_USE" = "1" ]; then
       echo '[INFO] 1password reference is missing (skipped)'
     else
-      if (grep -q ^TEST_VAR_1PASSWORD_REF "$FILE_NAME_BASE.simple"); then
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
         echo '[OK] 1password reference is present'
       else
         echo '[ERROR] 1password reference is missing'
@@ -124,18 +128,18 @@ case $routine in
     fi
 
     # verify yq is working (configmap generation)
-    if cmp -s "$script_dir/tests/validator.env.configmap.json" "$FILE_NAME_BASE.configmap.json"; then
+    if cmp -s "$script_dir/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"; then
       echo '[OK] JSON configmap generated correctly'
     else
       echo '[ERROR] JSON configmap generated with errors'
-      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.json" "$FILE_NAME_BASE.configmap.json"
+      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"
     fi
 
-    if cmp -s "$script_dir/tests/validator.env.configmap.yml" "$FILE_NAME_BASE.configmap.yml"; then
+    if cmp -s "$script_dir/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"; then
       echo '[OK] YAML configmap generated correctly'
     else
       echo '[ERROR] YAML configmap generated with errors'
-      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.yml" "$FILE_NAME_BASE.configmap.yml"
+      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"
     fi
 
     # verify that secret_tool is available in PATH

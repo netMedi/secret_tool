@@ -117,8 +117,18 @@ if [ "$1" = "--update" ]; then
     echo '[INFO] Standalone installation (secret_utils.sh is not available). Attempting update in-place...'
 
     [ -z "$VERSION" ] && VERSION="$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r '.tag_name')"
-    sudo wget -qO "$actual_path" "https://raw.githubusercontent.com/netMedi/secret_tool/$VERSION/secret_tool.sh" || exit 1
-    sudo chmod +x /usr/local/bin/secret_tool && exit 0
+
+    wget -qO ./secret_tool "https://raw.githubusercontent.com/netMedi/secret_tool/$VERSION/secret_tool.sh" || exit 1
+    {
+      sh -c "mv ./secret_tool '$actual_path'; chmod +x '$actual_path' 2> /dev/null" || exit 1
+    } || {
+      sudo sh -c "mv ./secret_tool '$actual_path'; chmod +x '$actual_path' 2> /dev/null" || exit 1
+    } || {
+      rm ./secret_tool
+      exit 1
+    }
+
+    exit 0
   fi
   VERSION=$VERSION "$script_dir/secret_utils.sh" update || exit 1
   exit 0
@@ -203,7 +213,7 @@ produce_configmap() {
 
   # Function to build nested objects using dots as delimiters
   build_nested_object() {
-    local key="$1"
+    local key=$(echo "$1" | tr '[:upper:]' '[:lower:]')
     local value="$2"
     local json="$3"
 
@@ -335,12 +345,15 @@ if [ -n "$target_profiles" ]; then
     # uncomment next line for debugging
     # echo "All env variables: ${env_variables[@]}"
 
+    # ensure buffer is empty (prevent possible injections)
+    printf "" > "$output_file_path.tmp"
+
     # content itself
     for var_name in "${env_variables[@]}"; do
       # if local env variable override is present, use that
       var_value="${!var_name}"
       if [ -n "$var_value" ]; then
-        echo "# overridden from local env: $var_name" >> "$output_file_path.tmp"
+        echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
       else
         # otherwise, use value from secret map
         var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" "$SECRET_MAP")
@@ -416,12 +429,11 @@ EOF
         ;;
       *)
         FORMAT='envfile'
+        touch "$output_file_path"
         sort "$output_file_path.tmp" | uniq > "$output_file_path"
-        echo '' > "$output_file_path"
         prepend_headers "$output_file_path"
         ;;
     esac
-
 
     rm "$output_file_path.tmp"
   done
@@ -460,4 +472,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4beta
+# v1.4beta2

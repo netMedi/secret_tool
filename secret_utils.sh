@@ -48,6 +48,43 @@ script_dir=$(dirname "$actual_path")
 SYMLINK_DIR=${SYMLINK_DIR:-/usr/local/bin}
 
 case $routine in
+  update)
+    ### perform update from git
+    git -C "$script_dir" stash > /dev/null # this may produce stashes, maybe reset instead?
+
+    [ -n "$VERSION" ] && {
+      git -C "$script_dir" fetch --tags > /dev/null
+      if [ "$VERSION" = "stable" ] || [ "$VERSION" = "latest" ]; then
+        VERSION=$(git ls-remote --tags origin | cut --delimiter='/' --fields=3 | sort -r | grep "^v" | head -n 1)
+      fi
+      git -C "$script_dir" checkout "$VERSION" > /dev/null
+    } || {
+      git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
+    }
+    git -C "$script_dir" pull > /dev/null
+    echo
+
+    "$script_dir/secret_tool.sh" --version
+    exit 0
+    ;;
+
+  install)
+    ### create symlink if missing
+    command -v secret_tool > /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
+
+    echo 'Creating global secret_tool symlink'
+    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'
+    ;;
+  uninstall)
+    ### remove symlink if present
+    symlink_path=$(command -v secret_tool 2> /dev/null)
+    if [ -z "$symlink_path" ]; then
+      echo '[INFO] Secret tool is not symlinked' && exit 0
+    fi
+
+    echo 'Removing global secret_tool symlink'
+    sudo rm "${SYMLINK_DIR:-/usr/local/bin}/secret_tool" && echo '[DONE] Secret tool has been uninstalled' || echo '[ERROR] Failed to uninstall secret tool'
+    ;;
   test)
     ### self-test; also accepts custom maps (consider making the tests more universal)
     DEBUG=${DEBUG:-0}
@@ -55,6 +92,8 @@ case $routine in
 
     echo "Running secret_tool's self-tests"
     echo
+
+    # --- beginning of tests ---
 
     if [ "$SKIP_OP_USE" = "1" ]; then
       echo '[DEBUG] Skipping 1password tests'
@@ -65,15 +104,23 @@ case $routine in
     fi
 
     export FILE_NAME_BASE="$script_dir/tests/.env."
-    SECRET_MAP="${SECRET_MAP:-$script_dir/tests/secret_map.yml}" \
-      TEST_VAR_LOCAL_OVERRIDE=overridden \
-        "$script_dir/secret_tool.sh" \
-          'simple' \
-          'inherit2'
+    export SECRET_MAP="${SECRET_MAP:-$script_dir/tests/secret_map.yml}"
 
-    FORMAT=json "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.json"
+    TEST_VAR_LOCAL_OVERRIDE=overridden \
+      "$script_dir/secret_tool.sh" \
+        --all
 
-    FORMAT=yml "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.yml"
+    export SKIP_HEADERS_USE=1
+
+    # configmap dump with nested array
+    FORMAT=json "$script_dir/secret_tool.sh" 'nested_array'
+    FORMAT=yml "$script_dir/secret_tool.sh" 'nested_array'
+
+    export SECRET_MAP=''
+
+    # configmap generation (express command)
+    SECRET_MAP='' FORMAT=json "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.json"
+    SECRET_MAP='' FORMAT=yml "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.yml"
 
     dotenvx_version=$(npm list -g | grep @dotenvx/dotenvx | cut -d'@' -f2-)
     if [ -n "$dotenvx_version" ]; then
@@ -127,19 +174,36 @@ case $routine in
       fi
     fi
 
-    # verify yq is working (configmap generation)
+    # verify "nested_array" profile: JSON
+    if cmp -s "$script_dir/tests/validator.env.nested_array.json" "${FILE_NAME_BASE}nested_array.json"; then
+      echo '[OK] Nested array generated correctly (JSON)'
+    else
+      echo '[ERROR] Nested array generated with errors (JSON)'
+      errors=$((errors + 1))
+    fi
+
+    # verify "nested_array" profile: YAML
+    if cmp -s "$script_dir/tests/validator.env.nested_array.yml" "${FILE_NAME_BASE}nested_array.yml"; then
+      echo '[OK] Nested array generated correctly (YAML)'
+    else
+      echo '[ERROR] Nested array generated with errors (YAML)'
+      errors=$((errors + 1))
+    fi
+
+    # verify configmap generation from express command: JSON
     if cmp -s "$script_dir/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"; then
       echo '[OK] JSON configmap generated correctly'
     else
       echo '[ERROR] JSON configmap generated with errors'
-      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"
+      errors=$((errors + 1))
     fi
 
+    # verify configmap generation from express command: YAML
     if cmp -s "$script_dir/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"; then
       echo '[OK] YAML configmap generated correctly'
     else
       echo '[ERROR] YAML configmap generated with errors'
-      [ "$DEBUG" != "0" ] && diff "$script_dir/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"
+      errors=$((errors + 1))
     fi
 
     # verify that secret_tool is available in PATH
@@ -150,6 +214,7 @@ case $routine in
       errors=$((errors + 1))
     fi
 
+    # --- end of tests ---
     echo
     "$script_dir/secret_tool.sh" --version
 
@@ -157,45 +222,6 @@ case $routine in
     [ "$DEBUG" = "0" ] && rm "$FILE_NAME_BASE"*
     [ "$errors" -eq "0" ] && exit 0 || exit 1
     ;;
-
-  update)
-    ### perform update from git
-    git -C "$script_dir" stash > /dev/null # this may produce stashes, maybe reset instead?
-
-    [ -n "$VERSION" ] && {
-      git -C "$script_dir" fetch --tags > /dev/null
-      if [ "$VERSION" = "stable" ] || [ "$VERSION" = "latest" ]; then
-        VERSION=$(git ls-remote --tags origin | cut --delimiter='/' --fields=3 | sort -r | grep "^v" | head -n 1)
-      fi
-      git -C "$script_dir" checkout "$VERSION" > /dev/null
-    } || {
-      git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
-    }
-    git -C "$script_dir" pull > /dev/null
-    echo
-
-    "$script_dir/secret_tool.sh" --version
-    exit 0
-    ;;
-
-  install)
-    ### create symlink if missing
-    command -v secret_tool > /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
-
-    echo 'Creating global secret_tool symlink'
-    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'
-    ;;
-  uninstall)
-    ### remove symlink if present
-    symlink_path=$(command -v secret_tool 2> /dev/null)
-    if [ -z "$symlink_path" ]; then
-      echo '[INFO] Secret tool is not symlinked' && exit 0
-    fi
-
-    echo 'Removing global secret_tool symlink'
-    sudo rm "${SYMLINK_DIR:-/usr/local/bin}/secret_tool" && echo '[DONE] Secret tool has been uninstalled' || echo '[ERROR] Failed to uninstall secret tool'
-    ;;
-
   *)
     ### help
     echo "$help_text" | head -n -1 | tail -n +2

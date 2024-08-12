@@ -163,9 +163,13 @@ if [ -n "$target_profiles" ] && [ ! -f "$SECRET_MAP" ]; then
   exit 1
 fi
 
-if [ "$1" = "--profiles" ]; then
-  yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--'
-  exit 0
+if [ "$1" = "--profiles" ] || [ "$1" = "--all" ]; then
+  express_dump_commands=''
+  target_profiles=$(yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--')
+  [ "$1" = "--profiles" ] && {
+    echo "$target_profiles"
+    exit 0
+  }
 fi
 
 # print help (head of current file) if no arguments are provided
@@ -212,6 +216,7 @@ produce_configmap() {
   yq_object="{}"
 
   # Function to build nested objects using dots as delimiters
+  # TODO: if key part is an integer, it is treated as an array index
   build_nested_object() {
     local key=$(echo "$1" | tr '[:upper:]' '[:lower:]')
     local value="$2"
@@ -323,6 +328,18 @@ if [ -n "$target_profiles" ]; then
   env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" "$SECRET_MAP")
   duplicates_check "${env_variables_defaults[@]}"
 
+  case "$FORMAT" in
+    yml|yaml)
+      extension='.yml'
+      ;;
+    json)
+      extension='.json'
+      ;;
+    *)
+      extension=''
+      ;;
+  esac
+
   for target_profile in $target_profiles; do
     output_file_path="${FILE_NAME_BASE}${target_profile}${FILE_POSTFIX}"
 
@@ -383,7 +400,7 @@ if [ -n "$target_profiles" ]; then
     value_1='environment variables and secrets'
 
     header_2='File path'
-    value_2="$(realpath "$1")"
+    value_2="$(realpath "${FILE_NAME_BASE}${target_profile}${extension}")"
 
     header_3='Map path'
     value_3="$(realpath "$SECRET_MAP")"
@@ -400,7 +417,7 @@ if [ -n "$target_profiles" ]; then
     header_7='Secret map release'
     value_7="$(get_file_modified_date "$SECRET_MAP")"
 
-    prepend_headers() {
+    [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers() {
       cat <<EOF > "$1"
 # ${header_1}: ${value_1}
 # ${header_2}: ${value_2}
@@ -417,12 +434,12 @@ EOF
     case "$FORMAT" in
       yml|yaml)
         produce_configmap "$output_file_path.tmp" yml > "$output_file_path.yml"
-        prepend_headers "$output_file_path.yml"
+        [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path.yml"
         ;;
       json)
         produce_configmap "$output_file_path.tmp" json > "$output_file_path.json"
 
-        yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path.json" -i
+        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path.json" -i
 
         # sort top level json keys alphabetically with yq
         yq eval 'sort_keys(.)' "$output_file_path.json" -i
@@ -431,7 +448,7 @@ EOF
         FORMAT='envfile'
         touch "$output_file_path"
         sort "$output_file_path.tmp" | uniq > "$output_file_path"
-        prepend_headers "$output_file_path"
+        [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path"
         ;;
     esac
 
@@ -472,4 +489,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4beta2
+# v1.4beta3

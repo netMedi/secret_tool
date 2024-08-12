@@ -25,6 +25,27 @@ References:
 - `./secret_utils.sh install`
 
 
+## CI install
+
+Declare update_secret_tool block at the top level of `.circleci/config.yml`
+```sh
+update_secret_tool: &update_secret_tool
+  name: Update Secret Tool
+  command: |
+    latest_tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
+    sudo wget -qO /usr/local/bin/secret_tool https://raw.githubusercontent.com/netMedi/secret_tool/$latest_tagged_version/secret_tool.sh
+    sudo chmod +x /usr/local/bin/secret_tool
+    secret_tool --version
+```
+
+Whenever you need `secret_tool` installed in the context, include it as a step:
+```yml
+  steps:
+    # other steps
+    - run: *update_secret_tool
+```
+
+
 ## Update
 
 There are a couple of automated ways to update secret_tool.

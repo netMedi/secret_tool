@@ -255,11 +255,48 @@ produce_configmap() {
 
   done < "$env_file"
 
+  inline_js_fixup="""
+    const unoptimised_obj=\`$(echo "$yq_object" | yq -o=json '.')\`;
+
+    const areAllKeysIntegers = obj => Object.keys(obj).every(key => /^\d+$/.test(key));
+    const normalizeJSON = (obj) => {
+      const result = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          const value = obj[key];
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            const normalized = normalizeJSON(value);
+            result[key] = areAllKeysIntegers(normalized) ? Object.values(normalized) : normalized;
+          } else {
+            result[key] = Array.isArray(value) ? Object.fromEntries(value.map((v, i) => [i, v])) : value;
+          }
+        }
+      }
+      return result;
+    };
+
+    console.log(
+      JSON.stringify(normalizeJSON(JSON.parse(unoptimised_obj)), null, 2)
+    );
+  """
+
+  # use JS runtime to normalise nested arrays
+  json_obj_normalised="$(echo "$inline_js_fixup" | bun run -)" \
+    || json_obj_normalised="$(echo "$inline_js_fixup" | node)"
+
   # Print the final JSON object
-  if [ "$FORMAT" = "yml" ] || [ "$FORMAT" = "yaml" ]; then
-    echo "$yq_object"
-  elif [ "$FORMAT" = "json" ]; then
-    echo "$yq_object" | yq -o=json '.'
+  if [ "$FORMAT" = "json" ]; then
+    [ -n "$json_obj_normalised" ] && {
+      echo "$json_obj_normalised"
+    } || {
+      echo "$yq_object" | yq -o=json '.' -P
+    }
+  elif [ "$FORMAT" = "yml" ] || [ "$FORMAT" = "yaml" ]; then
+    [ -n "$json_obj_normalised" ] && {
+      echo "$json_obj_normalised" | yq -Poy
+    } || {
+      echo "$yq_object"
+    }
   fi
 }
 
@@ -489,4 +526,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4beta3
+# v1.4beta4

@@ -44,7 +44,7 @@ help_text="
     $cmd_name --profiles                       # list all available profiles and exit
     $cmd_name --profiles                       # list all available profiles and exit
     $cmd_name -- .env.test:MY_VAR=123          # express dump variable into file (append to existing or create new)
-    $cmd_name test -- ./.env.test:MY_VAR=123     # extract profile and append override to it
+    $cmd_name test -- ./.env.test:MY_VAR=123   # extract profile and append override to it
 
   Examples:
     $cmd_name staging                          # dump secrets for this profile
@@ -72,7 +72,8 @@ get_file_modified_date() {
     if [ "$(uname)" = "Darwin" ]; then
       file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" "$1")
     else
-      file_date=$(date +'%Y-%m-%d at %H:%M:%S%z' -r "$1")
+      file_date=$(stat --format="%y" "$1")
+      file_date="${file_date/T/ at }"
     fi
     commit=''
   }
@@ -380,37 +381,40 @@ if [ -n "$target_profiles" ]; then
   for target_profile in $target_profiles; do
     output_file_path="${FILE_NAME_BASE}${target_profile}${FILE_POSTFIX}"
 
-    # block of target environment
-    env_variables=$(yq -r ".profiles.$target_profile | to_entries | .[] | .key" "$SECRET_MAP")
+    inline_js_fixup="""
+      const profile_vars=JSON.parse(\`$(yq -o=json '.' "$SECRET_MAP")\`)['profiles']['$target_profile'];
 
-    # list of all env variables sorted alphabetically
-    env_variables=( ${env_variables_defaults[@]} ${env_variables[@]} )
-    # declare -A skip_vars=(['<<']=1)
-    clean_env=()
-    for i in "${env_variables[@]}"; do
-      if ! [ "$i" = '<<' ]; then
-        clean_env+=("$i")
-      fi
-      # skip_vars["$i"]=1
-    done
-    IFS=$'\n' env_variables=($(printf '%s\n' "${clean_env[@]}" | LC_ALL=C sort))
-
+      Object.entries(profile_vars).forEach(([key, value]) => {
+        console.log(key+'=\'\'\''+value+'\'\'\'');
+      });
+    """
+    env_variables="$(echo "$inline_js_fixup" | bun run -)" \
+      || env_variables="$(echo "$inline_js_fixup" | node)"
 
     # uncomment next line for debugging
-    # echo "All env variables: ${env_variables[@]}"
+    # echo "All env variables: $env_variables"
 
     # ensure buffer is empty (prevent possible injections)
     printf "" > "$output_file_path.tmp"
 
     # content itself
-    for var_name in "${env_variables[@]}"; do
+    IFS=$'\n'
+    for var_line in $env_variables; do
+      var_name=${var_line%%=*}
+
+      # unwrap var_value (the substring in between of triple quotes of var_line)
+      var_value=${var_line#*=\'\'\'}
+      var_value=${var_value%\'\'\'}
+
       # if local env variable override is present, use that
-      var_value="${!var_name}"
-      if [ -n "$var_value" ]; then
-        echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
+      local_override=$(env | grep "^${var_name}=")
+      local_override=${local_override#*=}
+
+      if [ -n "$local_override" ]; then
+        var_value="${local_override}"
+        [ "$FORMAT" = "envfile" ] && echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
       else
         # otherwise, use value from secret map
-        var_value=$(yq e ".profiles.$target_profile.$var_name | select(.)" "$SECRET_MAP")
         extract_value_from_op_ref "$var_value" > /dev/null
       fi
 
@@ -432,6 +436,7 @@ if [ -n "$target_profiles" ]; then
         [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
       fi
     done
+    unset IFS
 
     header_1='Content type'
     value_1='environment variables and secrets'
@@ -526,4 +531,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4beta4
+# v1.4beta5

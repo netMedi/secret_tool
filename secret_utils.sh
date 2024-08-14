@@ -130,6 +130,14 @@ case $routine in
       errors=$((errors + 1))
     fi
 
+    yq_version=$(yq --version | grep mikefarah/yq)
+    if [ -n "$yq_version" ]; then
+      echo "[OK] YQ is installed correctly"
+    else
+      echo '[ERROR] YQ is NOT installed correctly'
+      errors=$((errors + 1))
+    fi
+
     # local env override
     if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "${FILE_NAME_BASE}simple"); then
       echo '[OK] Locally overridden value was used'

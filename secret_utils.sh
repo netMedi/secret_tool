@@ -69,11 +69,39 @@ case $routine in
     ;;
 
   install)
+    echo '[INFO] Trying to log in to 1password...'
+      op whoami > /dev/null 2>&1 \
+        || eval "$(op signin --account netmedi)"
+
+    token_name='GITHUB_TOKEN'
+    if $(op read "op://Employee/$token_name/credential" 2> /dev/null | wc -l | grep -q 0); then
+      echo 'Create Github token: https://github.com/settings/tokens'
+      printf 'Enter your GitHub [read:packages] token: '
+      read -r token \
+        && sh -c "op item create \
+          --vault Private \
+          --title '$token_name' \
+          --tags guthub,secret_tool \
+          --category 'API Credential' \
+            'credential=$token' \
+            'expires=2999-12-31' \
+        " > /dev/null \
+        || echo "[ERROR] Failed to create '$token_name' in 1password"
+    else
+      echo "[INFO] '$token_name' already exists in 1password"
+    fi
+
     ### create symlink if missing
-    command -v secret_tool > /dev/null && echo '[INFO] Secret tool is already symlinked' && exit 0
+    command -v secret_tool > /dev/null \
+      && {
+        echo '[INFO] Secret tool is already symlinked'
+        secret_tool --version > /dev/null 2>&1 && exit 0
+      }
 
     echo 'Creating global secret_tool symlink'
-    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -s $script_dir/secret_tool.sh $SYMLINK_DIR/secret_tool && chmod +x $SYMLINK_DIR/secret_tool" && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' || echo '[ERROR] Failed to install secret tool'
+    sudo sh -c "mkdir -p $SYMLINK_DIR; ln -sf '$script_dir/secret_tool.sh' '$SYMLINK_DIR/secret_tool' && chmod +x $SYMLINK_DIR/secret_tool" \
+      && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' \
+      || echo '[ERROR] Failed to install secret tool'
     ;;
   uninstall)
     ### remove symlink if present
@@ -93,35 +121,51 @@ case $routine in
     echo "Running secret_tool's self-tests"
     echo
 
-    # --- beginning of tests ---
-
-    if [ "$SKIP_OP_USE" = "1" ]; then
-      echo '[DEBUG] Skipping 1password tests'
-    else
-      echo '[INFO] Trying to log in to 1password...'
-      op whoami > /dev/null 2>&1 \
-        || eval "$(op signin --account netmedi)"
-    fi
-
     export FILE_NAME_BASE="$script_dir/tests/.env."
     export SECRET_MAP="${SECRET_MAP:-$script_dir/tests/secret_map.yml}"
+    export SKIP_OP_MARKER="$script_dir/tests/.env.SKIP_OP_MARKER"
+    rm "$SKIP_OP_MARKER" 2> /dev/null
 
+    SKIP_OP_MARKER_WRITE=1 \
     TEST_VAR_LOCAL_OVERRIDE=overridden \
       "$script_dir/secret_tool.sh" \
         --all
 
+    if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
+      echo '[DEBUG] Skipping 1password tests'
+    fi
+
     export SKIP_HEADERS_USE=1
+    export VERBOSITY=0
+    export SKIP_OP_USE=1
 
     # configmap dump with nested array
-    FORMAT=json "$script_dir/secret_tool.sh" 'nested_array'
-    FORMAT=yml "$script_dir/secret_tool.sh" 'nested_array'
+    FORMAT=json \
+      "$script_dir/secret_tool.sh" \
+        'nested_array'
+    FORMAT=yml \
+      "$script_dir/secret_tool.sh" \
+        'nested_array'
 
     export SECRET_MAP=''
 
     # configmap generation (express command)
-    SECRET_MAP='' FORMAT=json "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.json"
-    SECRET_MAP='' FORMAT=yml "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.yml"
+    FORMAT=json \
+      "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.json"
+    FORMAT=yml \
+      "$script_dir/secret_tool.sh" -- "$script_dir/tests/configmap.env" > "${FILE_NAME_BASE}configmap.yml"
 
+    # --- beginning of tests ---
+
+    # verify that secret_tool is available in PATH
+    if (command -v secret_tool > /dev/null); then
+      echo '[OK] secret_tool is available in PATH'
+    else
+      echo '[ERROR] secret_tool is NOT available in PATH'
+      errors=$((errors + 1))
+    fi
+
+    # verify that dotenvx is installed globally
     dotenvx_version=$(npm list -g | grep @dotenvx/dotenvx | cut -d'@' -f2-)
     if [ -n "$dotenvx_version" ]; then
       echo "[OK] Dotenvx is installed globally: $dotenvx_version"
@@ -130,6 +174,7 @@ case $routine in
       errors=$((errors + 1))
     fi
 
+    # verify that correct yq is installed
     yq_version=$(yq --version | grep mikefarah/yq)
     if [ -n "$yq_version" ]; then
       echo "[OK] YQ is installed correctly"
@@ -170,18 +215,6 @@ case $routine in
       errors=$((errors + 1))
     fi
 
-    # verify 1password integration is working
-    if [ "$SKIP_OP_USE" = "1" ]; then
-      echo '[INFO] 1password reference is missing (skipped)'
-    else
-      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
-        echo '[OK] 1password reference is present'
-      else
-        echo '[ERROR] 1password reference is missing'
-        errors=$((errors + 1))
-      fi
-    fi
-
     # verify "nested_array" profile: JSON
     if cmp -s "$script_dir/tests/validator.env.nested_array.json" "${FILE_NAME_BASE}nested_array.json"; then
       echo '[OK] Nested array generated correctly (JSON)'
@@ -214,19 +247,45 @@ case $routine in
       errors=$((errors + 1))
     fi
 
-    # verify that secret_tool is available in PATH
-    if (command -v secret_tool > /dev/null); then
-      echo '[OK] secret_tool is available in PATH'
+    # verify 1password integration is working
+    if [ -f "$SKIP_OP_MARKER" ]; then
+      echo '[INFO] 1password reference is missing (skipped)'
     else
-      echo '[ERROR] secret_tool is NOT available in PATH'
-      errors=$((errors + 1))
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
+        echo '[OK] 1password reference is present'
+      else
+        echo '[ERROR] 1password reference is missing'
+        errors=$((errors + 1))
+      fi
+    fi
+
+    # verify 1password integration is working
+    if [ -f "$SKIP_OP_MARKER" ]; then
+      echo '[INFO] 1password reference is missing (skipped)'
+    else
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
+        echo '[OK] GITHUB_TOKEN (1password) is present'
+      else
+        echo '[ERROR] GITHUB_TOKEN (1password) is missing'
+        echo '  Refer to installation instructions:'
+        echo '    https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation'
+        errors=$((errors + 1))
+      fi
     fi
 
     # --- end of tests ---
+
     echo
     "$script_dir/secret_tool.sh" --version
+    echo
 
     # clean up unless debugging is enabled
+    stty -echo
+    printf '[ Press any key to clean up and exit... ]'
+    char=$(dd bs=1 count=1 2>/dev/null)
+    stty echo
+    printf "\n"
+
     [ "$DEBUG" = "0" ] && rm "$FILE_NAME_BASE"*
     [ "$errors" -eq "0" ] && exit 0 || exit 1
     ;;

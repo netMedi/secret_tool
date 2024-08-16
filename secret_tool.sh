@@ -113,9 +113,11 @@ SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
 FILE_NAME_BASE=${FILE_NAME_BASE:-./.env.} # this can be also be path
 FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
 
+VERBOSITY=${VERBOSITY:-1} # by default output INFO and WARN messages
+
 if [ "$1" = "--update" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[INFO] Standalone installation (secret_utils.sh is not available). Attempting update in-place...'
+    [ "$VERBOSITY" -ge "1" ] && echo '[INFO] Standalone installation (secret_utils.sh is not available). Attempting update in-place...'
 
     [ -z "$VERSION" ] && VERSION="$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r '.tag_name')"
 
@@ -137,7 +139,7 @@ fi
 
 if [ "$1" = "--test" ]; then
   if [ ! -f "$script_dir/secret_utils.sh" ]; then
-    echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
+    [ "$VERBOSITY" -ge "1" ] && echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
     exit 1
   fi
   "$script_dir/secret_utils.sh" test || exit 1
@@ -160,7 +162,7 @@ target_profiles="${__%%--*}"
 
 if [ -n "$target_profiles" ] && [ ! -f "$SECRET_MAP" ]; then
   echo "[ERROR] Secret map file not found: $SECRET_MAP"
-  echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
+  [ "$VERBOSITY" -ge "1" ] && echo "[INFO] Please, change working directory or submit correct value via a SECRET_MAP variable"
   exit 1
 fi
 
@@ -301,46 +303,84 @@ produce_configmap() {
   fi
 }
 
-if [ -n "$target_profiles" ]; then
-  if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ]; then
-    export SKIP_OP_USE=1
-  else
-    [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
-      echo '[INFO] 1password login confirmed'
-    } || {
-      echo '[INFO] Trying to log in to 1password...'
-      xyn='y'
-      # signin manually if 1password eval signin has not been done yet
-      while [ "$xyn" = "y" ]; do
-        op whoami > /dev/null 2>&1 \
-          || OP_VAL=$(op signin --account netmedi -f | head -n 1) \
-          || { echo "$OP_VAL"; xyn='y'; }
-
-        OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
-        [ -n "$OP_SESSION_EVAL" ] && {
-          eval "$(echo $OP_SESSION_EVAL)"
+if [ -f "$SKIP_OP_MARKER" ]; then
+  [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER: $SKIP_OP_MARKER"
+  export SKIP_OP_USE=1
+elif [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ]; then
+  export SKIP_OP_USE=1
+else
+  [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
+    [ "$VERBOSITY" -ge "1" ] && echo '[INFO] 1password login confirmed'
+  } || {
+    [ "$VERBOSITY" -ge "1" ] && echo '[INFO] Trying to log in to 1password...'
+    xyn='y'
+    # signin manually if 1password eval signin has not been done yet
+    while [ "$xyn" = "y" ]; do
+      op whoami > /dev/null 2>&1 \
+        && {
           xyn=''
+          rm "$SKIP_OP_MARKER" 2> /dev/null
+        } || {
+          OP_VAL=$(op signin --account netmedi -f | head -n 1)
         }
 
-        if [ "$xyn" = "y" ]; then
-          echo "Do you want to retry?"
+      OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
+      [ -n "$OP_SESSION_EVAL" ] && {
+        eval "$(echo $OP_SESSION_EVAL)" && xyn=''
+      }
+
+      if [ "$xyn" = "y" ]; then
+        xyn=''
+        while [ "$xyn" = "" ]; do
+          echo "Do you want to retry logging in to 1password?"
           echo "  Y (or Enter) = yes, retry"
           echo "  n = no, continue without 1password"
           echo "  x - just exit"
-          read -n 1 xyn
-          case $xyn in
-            [Yy]* ) xyn='y'; echo "retrying to log in to 1password...";;
-            [Nn]* ) SKIP_OP_USE=1;;
-            [Xx]* ) exit 1;;
-            * ) [ -z "$xyn" ] && xyn='y'; echo 'Please answer "y", "n", or "x" (single letter, no quotes)';;
-          esac
-        fi
-      done
-    }
+          read -r -n 1 xyn
+          [ -n "$xyn" ] && echo
 
+          case $xyn in
+            [Yy]* )
+              xyn='y'
+              [ "$VERBOSITY" -ge "1" ] && {
+                echo
+                echo '[INFO] retrying to log in to 1password...'
+              }
+              ;;
+            [Nn]* )
+              SKIP_OP_USE=1
+              ;;
+            [Xx]* )
+              exit 0
+              ;;
+            * )
+              [ -z "$xyn" ] && {
+                xyn='y'
+              } || {
+                echo '[ Please answer "y", "n", or "x" (single letter, no quotes) ]'
+                echo
+                xyn=''
+              }
+              ;;
+          esac
+        done
+      fi
+    done
+  }
+fi
+
+if [ -n "$SKIP_OP_USE" ]; then
+  [ -n "$SKIP_OP_MARKER_WRITE" ] && {
+    touch "$SKIP_OP_MARKER"
+    [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER written: $SKIP_OP_MARKER"
+  }
+fi
+
+if [ -n "$target_profiles" ]; then
+  [ "$VERBOSITY" -ge "1" ] && {
     echo
     echo '[INFO] Extracting values...'
-  fi
+  }
 
   for target_profile in $target_profiles; do
     # verify that target profile exists
@@ -356,7 +396,7 @@ if [ -n "$target_profiles" ]; then
     for ((i=0; i<${#input_array[@]}; i++)); do
       for ((j=i+1; j<${#input_array[@]}; j++)); do
         if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
-          echo "[WARN] Duplicate keys detected: ${input_array[i]}"
+          [ "$VERBOSITY" -ge "1" ] && echo "[WARN] Duplicate keys detected: ${input_array[i]}"
         fi
       done
     done
@@ -531,4 +571,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4beta5
+# v1.4

@@ -149,7 +149,7 @@ express_dump_commands="${__#*--}"
 [ "$express_dump_commands" = "$__" ] && express_dump_commands=""
 
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ]; then
-  export EXTRACT="ci"
+  echo '[INFO] Running in CI. Make sure to either use SKIP_OP_USE=1 or pass through 1password session'
 fi
 
 if [ -n "$EXTRACT" ]; then
@@ -306,9 +306,7 @@ produce_configmap() {
 if [ -f "$SKIP_OP_MARKER" ]; then
   [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER: $SKIP_OP_MARKER"
   export SKIP_OP_USE=1
-elif [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ] || [ "$SKIP_OP_USE" = "1" ]; then
-  export SKIP_OP_USE=1
-else
+elif [ "$SKIP_OP_USE" != "1" ]; then
   [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
     [ "$VERBOSITY" -ge "1" ] && echo '[INFO] 1password login confirmed'
   } || {
@@ -588,4 +586,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4.4
+# v1.4.5

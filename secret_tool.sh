@@ -91,7 +91,7 @@ if [ "$1" = "--version" ]; then
     && cd "$script_dir" \
     || st_file_name=secret_tool
 
-  st_version="$(cat ./$st_file_name | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date ./$st_file_name)" || exit 1
+  st_version="$(cat "$script_dir/$st_file_name" | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date "$script_dir/$st_file_name")" || exit 1
   echo "$st_version"
   exit 0
 fi

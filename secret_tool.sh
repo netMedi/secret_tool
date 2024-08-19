@@ -378,7 +378,7 @@ fi
 if [ -n "$target_profiles" ]; then
   [ "$VERBOSITY" -ge "1" ] && {
     echo
-    echo '[INFO] Extracting values...'
+    echo "[INFO] Extracting values ($target_profiles)..."
   }
 
   for target_profile in $target_profiles; do

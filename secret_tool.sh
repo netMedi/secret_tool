@@ -548,6 +548,9 @@ EOF
         ;;
     esac
 
+    [ "$VERBOSITY" -ge "1" ] && {
+      echo "[INFO] Output: $(realpath "${output_file_path}${extension}")"
+    }
     rm "$output_file_path.tmp"
   done
 fi
@@ -585,4 +588,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4.2
+# v1.4.3

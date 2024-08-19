@@ -99,8 +99,9 @@ profiles:
         - val1
         - val2
         - val3
-  USUAL_ENV__VAR_VAL: asdf
-  # ^ a totally valid map including a mixture of input formats
+    USUAL_ENV__VAR_VAL: asdf
+
+# ^ a totally valid map including a mixture of input formats
 ```
 
 

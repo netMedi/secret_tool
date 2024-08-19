@@ -52,7 +52,7 @@ help_text="
     INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
     FILE_NAME_BASE='/tmp/.env.' $cmd_name dev  # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
-    PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
+    EXTRACT='ci test' $cmd_name                # set target profiles via variable (same as \`$cmd_name ci test\`)
     SKIP_OP_USE=1 $cmd_name ci                 # do not use 1password
 "
 # shellcheck enable=SC2140
@@ -149,11 +149,11 @@ express_dump_commands="${__#*--}"
 [ "$express_dump_commands" = "$__" ] && express_dump_commands=""
 
 if [ -n "$CIRCLECI" ] || [ -n "$GITHUB_WORKFLOW" ]; then
-  export PROFILES="ci"
+  export EXTRACT="ci"
 fi
 
-if [ -n "$PROFILES" ]; then
-  __=$PROFILES
+if [ -n "$EXTRACT" ]; then
+  __=$EXTRACT
 fi
 target_profiles="${__%%--*}"
 [ "${__#--}" != "$__" ] && target_profiles=""
@@ -588,4 +588,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4.3
+# v1.4.4

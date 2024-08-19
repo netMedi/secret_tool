@@ -33,8 +33,9 @@ Declare update_secret_tool block at the top level of `.circleci/config.yml`
 update_secret_tool: &update_secret_tool
   name: Update Secret Tool
   command: |
-    latest_tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-    sudo wget -qO /usr/local/bin/secret_tool https://raw.githubusercontent.com/netMedi/secret_tool/$latest_tagged_version/secret_tool.sh
+    tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
+    # change tagged_version value to exact tag, if needed; example: v1.4.4
+    sudo wget -qO /usr/local/bin/secret_tool https://raw.githubusercontent.com/netMedi/secret_tool/$tagged_version/secret_tool.sh
     sudo chmod +x /usr/local/bin/secret_tool
     secret_tool --version
 ```
@@ -62,7 +63,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v1.3.1 secret_tool --update
+  VERSION=v1.4.4 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -78,7 +79,15 @@ There are a couple of automated ways to update secret_tool.
 ## Running with up-to-date secrets
 
 - go to target project
-- perform `secret_tool <profile_name(s)>` to produce .env.* file(s)
+- perform `secret_tool <profile_name(s)>` to produce .env.* file(s):
+
+```sh
+secret_tool my_profile_name another_profile
+
+# or
+
+EXTRACT='my_profile_name another_profile' secret_tool
+```
 
 
 ## Input format (naming and conventions)

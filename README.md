@@ -9,6 +9,7 @@ Hard:
   - dash / ash / bash - command shell
   - [yq](https://github.com/mikefarah/yq) - YAML secret map's handling
   - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
+  - node / bun
 
 Soft:
   - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm global install !!!) - commands' wrapper

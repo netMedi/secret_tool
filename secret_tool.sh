@@ -284,7 +284,7 @@ produce_configmap() {
   """
 
   # use JS runtime to normalise nested arrays
-  json_obj_normalised="$(echo "$inline_js_fixup" | bun run -)" \
+  json_obj_normalised="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)" \
     || json_obj_normalised="$(echo "$inline_js_fixup" | node)"
 
   # Print the final JSON object
@@ -440,7 +440,7 @@ if [ -n "$target_profiles" ]; then
         console.log(key.toUpperCase() + '=\'\'\'' + value + '\'\'\'');
       });
     """
-    env_variables="$(echo "$inline_js_fixup" | bun run -)" \
+    env_variables="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)" \
       || env_variables="$(echo "$inline_js_fixup" | node)"
 
     # uncomment next line for debugging

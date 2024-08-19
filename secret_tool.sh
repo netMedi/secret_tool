@@ -52,7 +52,7 @@ help_text="
     VAR123='' $cmd_name                        # ignore local override of this variable
     SECRET_MAP='~/alt-map.yml' $cmd_name test  # use this map file
     INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
-    FILE_NAME_BASE='/tmp/.env.' $cmd_name dev   # start file name with this (create file /tmp/.env.dev)
+    FILE_NAME_BASE='/tmp/.env.' $cmd_name dev  # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
     PROFILES='ci test' $cmd_name               # set target profiles via variable (same as \`$cmd_name ci test\`)
     SKIP_OP_USE=1 $cmd_name ci                 # do not use 1password
@@ -391,21 +391,6 @@ if [ -n "$target_profiles" ]; then
   done
   [ "$FAILED" = "1" ] && exit 1
 
-  duplicates_check() {
-    input_array=("$@")
-    for ((i=0; i<${#input_array[@]}; i++)); do
-      for ((j=i+1; j<${#input_array[@]}; j++)); do
-        if [[ "${input_array[i]}" == "${input_array[j]}" ]]; then
-          [ "$VERBOSITY" -ge "1" ] && echo "[WARN] Duplicate keys detected: ${input_array[i]}"
-        fi
-      done
-    done
-  }
-
-  # block of overridable defaults
-  env_variables_defaults=$(yq -r ".profiles.--defaults | to_entries | .[] | .key" "$SECRET_MAP")
-  duplicates_check "${env_variables_defaults[@]}"
-
   case "$FORMAT" in
     yml|yaml)
       extension='.yml'
@@ -424,8 +409,36 @@ if [ -n "$target_profiles" ]; then
     inline_js_fixup="""
       const profile_vars=JSON.parse(\`$(yq -o=json '.' "$SECRET_MAP")\`)['profiles']['$target_profile'];
 
-      Object.entries(profile_vars).forEach(([key, value]) => {
-        console.log(key+'=\'\'\''+value+'\'\'\'');
+      // flatten nested arrays by adding index to key using double underscore as delimiter
+      const flattenNestedArray = (obj, prefix = '') =>
+        Object.keys(obj).reduce((acc, k) => {
+          const pre = prefix.length ? prefix + '__' : '';
+          if (Array.isArray(obj[k])) {
+            obj[k].forEach((v, i) => {
+              acc[pre + k + '__' + i] = v;
+            });
+          } else if (typeof obj[k] === 'object' && obj[k] !== null) {
+            Object.assign(acc, flattenNestedArray(obj[k], pre + k));
+          } else {
+            acc[pre + k] = obj[k];
+          }
+          return acc;
+        }, {});
+
+      // flatten nested objects using double underscore as delimiter
+      const flattenNestedObjects = (obj, prefix = '') =>
+        Object.keys(obj).reduce((acc, k) => {
+          const pre = prefix.length ? prefix + '__' : '';
+          if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+            Object.assign(acc, flattenNestedObjects(obj[k], pre + k));
+          } else {
+            acc[pre + k] = obj[k];
+          }
+          return acc;
+        }, {});
+
+      Object.entries(flattenNestedObjects(flattenNestedArray(profile_vars))).forEach(([key, value]) => {
+        console.log(key.toUpperCase() + '=\'\'\'' + value + '\'\'\'');
       });
     """
     env_variables="$(echo "$inline_js_fixup" | bun run -)" \
@@ -571,4 +584,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4
+# v1.4.1

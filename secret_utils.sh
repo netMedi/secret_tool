@@ -129,7 +129,7 @@ case $routine in
     SKIP_OP_MARKER_WRITE=1 \
     TEST_VAR_LOCAL_OVERRIDE=overridden \
       "$script_dir/secret_tool.sh" \
-        --all
+        all_tests pat
 
     if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
       echo '[DEBUG] Skipping 1password tests'
@@ -138,15 +138,6 @@ case $routine in
     export SKIP_HEADERS_USE=1
     export VERBOSITY=0
     export SKIP_OP_USE=1
-
-    # configmap dump with nested array
-    FORMAT=json \
-      "$script_dir/secret_tool.sh" \
-        'nested_array'
-    FORMAT=yml \
-      "$script_dir/secret_tool.sh" \
-        'nested_array'
-
     export SECRET_MAP=''
 
     # configmap generation (express command)
@@ -184,7 +175,7 @@ case $routine in
     fi
 
     # local env override
-    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "${FILE_NAME_BASE}simple"); then
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Locally overridden value was used'
     else
       echo '[ERROR] Locally overridden value was ignored'
@@ -192,7 +183,7 @@ case $routine in
     fi
 
     # simple number
-    if (grep -q ^TEST_VAR_NUMBER "${FILE_NAME_BASE}simple"); then
+    if (grep -q ^TEST_VAR_NUMBER "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Numeric value is present'
     else
       echo '[ERROR] Numeric value is missing'
@@ -200,7 +191,7 @@ case $routine in
     fi
 
     # simple string
-    if (grep -q ^TEST_VAR_STRING "${FILE_NAME_BASE}simple"); then
+    if (grep -q ^TEST_VAR_STRING "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] String value is present'
     else
       echo '[ERROR] String value is missing'
@@ -208,26 +199,34 @@ case $routine in
     fi
 
     # verify base profile values has been inherited
-    if (grep -q ^TEST_VAR_INHERITANCE_1=1 "${FILE_NAME_BASE}inherit2"); then
+    if (grep -q ^TEST_VAR_INHERITANCE_1=1 "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] YAML inheritance test passed'
     else
       echo '[ERROR] YAML inheritance test failed'
       errors=$((errors + 1))
     fi
 
-    # verify "nested_array" profile: JSON
-    if cmp -s "$script_dir/tests/validator.env.nested_array.json" "${FILE_NAME_BASE}nested_array.json"; then
-      echo '[OK] Nested array generated correctly (JSON)'
+    # verify array (flat)
+    if (grep -q "^TEST_NEST__ARR__0__NESTED_OBJECT__KEY1='value1-1'" "${FILE_NAME_BASE}all_tests"); then
+      echo '[OK] Nested array (flat) generated correctly'
     else
-      echo '[ERROR] Nested array generated with errors (JSON)'
+      echo '[ERROR] Nested array (flat) generated with errors'
       errors=$((errors + 1))
     fi
 
-    # verify "nested_array" profile: YAML
-    if cmp -s "$script_dir/tests/validator.env.nested_array.yml" "${FILE_NAME_BASE}nested_array.yml"; then
-      echo '[OK] Nested array generated correctly (YAML)'
+    # verify array (nested)
+    if (grep -q "^TEST_NEST_OBJ__VARIABLE__ARR_SIMPLE__0='value1'" "${FILE_NAME_BASE}all_tests"); then
+      echo '[OK] Nested array (nested) generated correctly'
     else
-      echo '[ERROR] Nested array generated with errors (YAML)'
+      echo '[ERROR] Nested array (nested) generated with errors'
+      errors=$((errors + 1))
+    fi
+
+    # verify array (complex nested)
+    if (grep -q "^TEST_NEST_COMPLEX__ARR_COMPLEX__0__NESTED_OBJECT__KEY1='value1-1'" "${FILE_NAME_BASE}all_tests"); then
+      echo '[OK] Nested array (complex nested) generated correctly'
+    else
+      echo '[ERROR] Nested array (complex nested) generated with errors'
       errors=$((errors + 1))
     fi
 
@@ -251,24 +250,24 @@ case $routine in
     if [ -f "$SKIP_OP_MARKER" ]; then
       echo '[INFO] 1password reference is missing (skipped)'
     else
-      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
-        echo '[OK] 1password reference is present'
-      else
-        echo '[ERROR] 1password reference is missing'
-        errors=$((errors + 1))
-      fi
-    fi
-
-    # verify 1password integration is working
-    if [ -f "$SKIP_OP_MARKER" ]; then
-      echo '[INFO] 1password reference is missing (skipped)'
-    else
-      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}simple"); then
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}all_tests"); then
         echo '[OK] GITHUB_TOKEN (1password) is present'
       else
         echo '[ERROR] GITHUB_TOKEN (1password) is missing'
         echo '  Refer to installation instructions:'
         echo '    https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation'
+        errors=$((errors + 1))
+      fi
+    fi
+
+    # verify GITHUB_TOKEN is set
+    if [ -f "$SKIP_OP_MARKER" ]; then
+      echo '[INFO] GITHUB_TOKEN (1password) is missing (skipped)'
+    else
+      if (grep -q ^TEST_OP_GITHUB_TOKEN "${FILE_NAME_BASE}pat"); then
+        echo '[OK] GITHUB_TOKEN (1password) is present'
+      else
+        echo '[ERROR] GITHUB_TOKEN (1password) is missing'
         errors=$((errors + 1))
       fi
     fi

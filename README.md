@@ -73,13 +73,38 @@ There are a couple of automated ways to update secret_tool.
   VERSION=stable secret_tool --update
 ```
 
+
 ## Running with up-to-date secrets
 
 - go to target project
 - perform `secret_tool <profile_name(s)>` to produce .env.* file(s)
 
 
-## Format converter
+## Input format (naming and conventions)
+
+Secret map can either be written as a configmap or a flat envfile (or a mix of those).
+
+Configmap keys are usually lower_case while envfile is all UPPER_CASE.
+
+Mixing those or writing in an inappropriate case is not critical and will only affect human-readability of a secret map.
+
+Nesting is either done in yaml manner or using double underscore (`__`) delimiter.
+
+```yaml
+---
+profiles:
+  my_C00L_profile:
+    some_typical_configmap:
+      conf1:
+        - val1
+        - val2
+        - val3
+  USUAL_ENV__VAR_VAL: asdf
+  # ^ a totally valid map including a mixture of input formats
+```
+
+
+## Ouput format (machine- or human-readable)
 
 secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable.
 
@@ -90,8 +115,9 @@ Examples:
 
   # extract secrets into a YAML file (./config/super_mega_test.yml)
   FILE_NAME_BASE=./config/super_mega_ FORMAT=yml secret_tool test
-
 ```
+
+Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
 
 <!--
 

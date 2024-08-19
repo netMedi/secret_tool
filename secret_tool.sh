@@ -1,8 +1,6 @@
 #!/bin/sh
 FALLBACK=$(ps -p $$ -o comm=)
 
-BEST_CHOICE=1; SHELL_NAME="bash" # [!!!] WIP this line prevents forced switch to POSIX shell
-
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
 
 if [ -z "$BEST_CHOICE" ]; then
@@ -73,12 +71,12 @@ get_file_modified_date() {
       file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" "$1")
     else
       file_date=$(stat --format="%y" "$1")
-      file_date="${file_date/T/ at }"
+      file_date=$(printf '%s\n' "$file_date" | tr 'T' ' at ')
     fi
     commit=''
   }
   modified_date_string="$file_date $commit"
-  modified_date_string=${modified_date_string/T/ at }
+  modified_date_string=$(printf '%s\n' "$modified_date_string" | tr 'T' ' at ')
   echo "$modified_date_string"
 }
 
@@ -146,7 +144,7 @@ if [ "$1" = "--test" ]; then
   exit 0
 fi
 
-__=${@:-''}
+__=${*:-''}
 express_dump_commands="${__#*--}"
 [ "$express_dump_commands" = "$__" ] && express_dump_commands=""
 
@@ -221,12 +219,14 @@ produce_configmap() {
   # Function to build nested objects using dots as delimiters
   # TODO: if key part is an integer, it is treated as an array index
   build_nested_object() {
-    local key=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-    local value="$2"
-    local json="$3"
+    key=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    value="$2"
+    json="$3"
 
     # Replace double underscores with dots
-    key="${key//__/.}"
+    while [ "${key#*__}" != "$key" ]; do
+      key="${key%%__*}.${key#*__}"
+    done
 
     # Use yq to set the value in the nested structure
     json=$(echo "$json" | yq eval ".${key} = $value" -)
@@ -250,7 +250,7 @@ produce_configmap() {
     fi
 
     # Handle numeric and string values correctly
-    if [[ "$value" =~ ^[0-9]+$ ]]; then
+    if expr "$value" : '^[0-9]\+$' > /dev/null; then
       yq_object=$(build_nested_object "$key" "$value" "$yq_object")
     else
       yq_object=$(build_nested_object "$key" "\"$value\"" "$yq_object")
@@ -326,7 +326,7 @@ else
 
       OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
       [ -n "$OP_SESSION_EVAL" ] && {
-        eval "$(echo $OP_SESSION_EVAL)" && xyn=''
+        eval "$(echo "$OP_SESSION_EVAL")" && xyn=''
       }
 
       if [ "$xyn" = "y" ]; then
@@ -336,10 +336,9 @@ else
           echo "  Y (or Enter) = yes, retry"
           echo "  n = no, continue without 1password"
           echo "  x - just exit"
-          read -r -n 1 xyn
-          [ -n "$xyn" ] && echo
+          read -r xyn
 
-          case $xyn in
+          case "$xyn" in
             [Yy]* )
               xyn='y'
               [ "$VERBOSITY" -ge "1" ] && {
@@ -351,7 +350,7 @@ else
               SKIP_OP_USE=1
               ;;
             [Xx]* )
-              exit 0
+              kill 0
               ;;
             * )
               [ -z "$xyn" ] && {
@@ -451,8 +450,7 @@ if [ -n "$target_profiles" ]; then
     printf "" > "$output_file_path.tmp"
 
     # content itself
-    IFS=$'\n'
-    for var_line in $env_variables; do
+    echo "$env_variables" | while IFS= read -r var_line; do
       var_name=${var_line%%=*}
 
       # unwrap var_value (the substring in between of triple quotes of var_line)
@@ -475,14 +473,17 @@ if [ -n "$target_profiles" ]; then
       if [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
         re_num='^[0-9]+$'
         re_yaml_bool=$allowed_boolean_regexp
-        if ! [[ $var_value =~ $re_num ]] && ! [[ $var_value =~ $re_yaml_bool ]]; then
+        if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
           # the strings that are not numbers or booleans are quoted
-          if [[ $var_value = *\$* ]]; then
-            var_value="\"${var_value}\""
-          else
-            # else surround non-numeric values with single quotes
-            var_value="'${var_value}'"
-          fi
+          case "$var_value" in
+            *\$*)
+              var_value="\"${var_value}\""
+              ;;
+            *)
+              # else surround non-numeric values with single quotes
+              var_value="'${var_value}'"
+              ;;
+          esac
         fi
         echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
       else
@@ -584,4 +585,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4.1
+# v1.4.2

@@ -74,7 +74,7 @@ case $routine in
         || eval "$(op signin --account netmedi)"
 
     token_name='GITHUB_TOKEN'
-    if $(op read "op://Employee/$token_name/credential" 2> /dev/null | wc -l | grep -q 0); then
+    if op read "op://Employee/$token_name/credential" 2> /dev/null | wc -l | grep -q 0; then
       echo 'Create Github token: https://github.com/settings/tokens'
       printf 'Enter your GitHub [read:packages] token: '
       read -r token \
@@ -279,10 +279,8 @@ case $routine in
     echo
 
     # clean up unless debugging is enabled
-    stty -echo
-    printf '[ Press any key to clean up and exit... ]'
-    char=$(dd bs=1 count=1 2>/dev/null)
-    stty echo
+    printf '[ Press Enter to clean up and exit... ]'
+    read -r REPLY
     printf "\n"
 
     [ "$DEBUG" = "0" ] && rm "$FILE_NAME_BASE"*

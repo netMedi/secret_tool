@@ -41,8 +41,6 @@ help_text="
     $cmd_name --test                           # perform self-test and exit (only for full git install)
     $cmd_name --profiles                       # list all available profiles and exit
     $cmd_name --profiles                       # list all available profiles and exit
-    $cmd_name -- .env.test:MY_VAR=123          # express dump variable into file (append to existing or create new)
-    $cmd_name test -- ./.env.test:MY_VAR=123   # extract profile and append override to it
 
   Examples:
     $cmd_name staging                          # dump secrets for this profile
@@ -176,6 +174,12 @@ fi
 # print help (head of current file) if no arguments are provided
 [ -z "$express_dump_commands" ] && [ -z "$target_profiles" ] && show_help
 
+rebuff() {
+  filename="$1"
+  rm "$filename" 2> /dev/null
+  touch "$filename"
+}
+
 extract_value_from_op_ref() {
   var_value="$1"
   if [ "$(echo "$var_value" | cut -c1-3)" = ":::" ]; then
@@ -226,20 +230,23 @@ flat_obj_to_nest() {
     const nested_env_obj = nestify(flat_env_obj);
 
     const areAllKeysIntegers = obj => Object.keys(obj).every(key => /^\d+$/.test(key));
+    const isEmptyObject = obj => Object.keys(obj).length === 0 && obj.constructor === Object;
+
     const normaliseJSON = (obj) => {
       const result = {};
       for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
           const value = obj[key];
-          if (typeof value === 'object' && !Array.isArray(value)) {
-            const normalized = normaliseJSON(value);
-            result[key] = areAllKeysIntegers(normalized) ? Object.values(normalized) : normalized;
+          if (Array.isArray(value)) {
+            result[key] = value;
+          } else if (typeof value === 'object' && value !== null) {
+            result[key] = normaliseJSON(value);
           } else {
-            result[key] = Array.isArray(value) ? Object.fromEntries(value.map((v, i) => [i, v])) : value;
+            result[key] = value;
           }
         }
       }
-      return result;
+      return !isEmptyObject(result) && areAllKeysIntegers(result) ? Object.values(result) : result;
     };
 
     console.log(JSON.stringify(normaliseJSON(nested_env_obj), null, 2));
@@ -360,6 +367,7 @@ if [ -n "$target_profiles" ]; then
 
   for target_profile in $target_profiles; do
     output_file_path="${FILE_NAME_BASE}${target_profile}${FILE_POSTFIX}"
+    rm "$output_file_path"*.tmp > /dev/null 2>&1
 
     inline_js_fixup="""
       const profile_vars=JSON.parse(\`$(yq -o=json '.' "$SECRET_MAP")\`)['profiles']['$target_profile'];
@@ -427,81 +435,75 @@ if [ -n "$target_profiles" ]; then
     # uncomment next line for debugging
     # echo "All env variables: $env_variables"
 
-    # CONTINUE HERE ----------------------------------
-    # for YAML and JSON output formats temporary file gets created with flat map
-    # env_variables should include values from 1password before writing to temporary file
-
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # record of locally overriden variables
+    locally_overriden_variables=''
 
     # ensure buffer is empty (prevent possible injections)
-    printf "" > "$output_file_path.tmp"
-    case "$FORMAT" in
-      yml|yaml)
-        echo "$env_variables" >> "$output_file_path.tmp"
-        ;;
-      json)
-        echo "$env_variables" | yq eval -o=json '.' >> "$output_file_path.tmp"
-        ;;
-      *)
-        echo "$env_variables" | while IFS= read -r var_line; do
-          empty=''
-          var_name=${var_line%%:*}
+    rebuff "$output_file_path.yml.tmp"
 
-          # unwrap var_value (the substring in between of triple quotes of var_line)
-          var_value=${var_line#*: \'}
-          var_value=${var_value%\'}
+    # temporary file is a flat YAML secret list
+    echo "$env_variables" | while IFS= read -r var_line; do
+      empty=''
+      var_name=${var_line%%:*}
 
-          # ignore empty arrays and objects
-          if [ "$var_value" = "$var_name: []" ]; then
-            empty='array'
-            var_value=''
-          elif [ "$var_value" = "$var_name: {}" ]; then
-            empty='object'
-            var_value=''
-          fi
+      # unwrap var_value (the substring in between of triple quotes of var_line)
+      var_value=${var_line#*: \'}
+      var_value=${var_value%\'}
 
-          # if local env variable override is present, use that
-          local_override=$(env | grep "^${var_name}=")
-          local_override=${local_override#*=}
+      # ignore empty arrays and objects
+      if [ "$var_value" = "$var_name: []" ]; then
+        empty='array'
+        var_value=''
+      elif [ "$var_value" = "$var_name: {}" ]; then
+        empty='object'
+        var_value=''
+      elif [ -z "$var_value" ] && [ "$INCLUDE_BLANK" = "1" ]; then
+        var_value="''"
+      fi
 
-          if [ -n "$local_override" ]; then
-            var_value="${local_override}"
-            [ "$FORMAT" = "envfile" ] && echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
-          else
-            # otherwise, use value from secret map
-            extract_value_from_op_ref "$var_value" > /dev/null
-          fi
+      # if local env variable override is present, use that
+      local_override=$(env | grep "^${var_name}=")
+      local_override=${local_override#*=}
 
-          # if we are including blank values, write those to file
-          if [ -n "$empty" ]; then
-            if [ "$empty" = "array" ]; then
-              echo "# ${var_name} is an empty array" >> "$output_file_path.tmp"
-            elif [ "$empty" = "object" ]; then
-              echo "# ${var_name} is an empty object" >> "$output_file_path.tmp"
-            fi
-          elif [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
-            re_num='^[0-9]+$'
-            re_yaml_bool=$allowed_boolean_regexp
-            if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
-              # the strings that are not numbers or booleans are quoted
-              case "$var_value" in
-                *\$*)
-                  var_value="\"${var_value}\""
-                  ;;
-                *)
-                  # else surround non-numeric values with single quotes
-                  var_value="'${var_value}'"
-                  ;;
-              esac
-            fi
-            echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
-          else
-            [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
-          fi
-        done
-        unset IFS
-        ;;
-    esac
+      if [ -n "$local_override" ]; then
+        var_value="${local_override}"
+        locally_overriden_variables="${locally_overriden_variables} ${var_name}"
+      else
+        # otherwise, use value from secret map
+        extract_value_from_op_ref "$var_value" > /dev/null
+      fi
+
+      # if we are including blank values, write those to file
+      if [ -n "$empty" ]; then
+        if [ "$empty" = "array" ]; then
+          echo "${var_name}: []" >> "$output_file_path.yml.tmp"
+        elif [ "$empty" = "object" ]; then
+          echo "${var_name}: {}" >> "$output_file_path.yml.tmp"
+        fi
+      elif [ -n "$var_value" ]; then
+        re_num='^[0-9]+$'
+        re_yaml_bool=$allowed_boolean_regexp
+        if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
+          # the strings that are not numbers or booleans are quoted
+          case "$var_value" in
+            *\$*|*\'*)
+              # if value has dollar sign or single quotes, surround with "
+              var_value="\"${var_value}\""
+              ;;
+            *)
+              # else surround non-numeric values with '
+              var_value="'${var_value}'"
+              ;;
+          esac
+        fi
+        echo "${var_name}: ${var_value}" >> "$output_file_path.yml.tmp"
+      else
+        [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)"
+      fi
+
+      rebuff "$output_file_path.override.tmp"
+      echo "$locally_overriden_variables" > "$output_file_path.override.tmp"
+    done
 
     header_1='Content type'
     value_1='environment variables and secrets'
@@ -524,6 +526,10 @@ if [ -n "$target_profiles" ]; then
     header_7='Secret map release'
     value_7="$(get_file_modified_date "$SECRET_MAP")"
 
+    header_8='Locally overriden variables'
+    locally_overriden_variables=$(cat "$output_file_path.override.tmp" | xargs)
+    value_8="%w[${locally_overriden_variables}]"
+
     [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers() {
       cat <<EOF > "$1"
 # ${header_1}: ${value_1}
@@ -533,6 +539,7 @@ if [ -n "$target_profiles" ]; then
 # ${header_5}: ${value_5}
 # ${header_6}: ${value_6}
 # ${header_7}: ${value_7}
+# ${header_8}: ${value_8}
 
 $(cat "$1")
 EOF
@@ -541,20 +548,56 @@ EOF
     case "$FORMAT" in
       yml|yaml)
         extension='.yml'
-        flat_obj_to_nest "$output_file_path.tmp" yml > "$output_file_path.yml"
+
+        rebuff "$output_file_path.yml"
+
+        flat_obj_to_nest "$output_file_path.yml.tmp" yml > "$output_file_path.yml"
         [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path${extension}"
         ;;
       json)
         extension='.json'
-        flat_obj_to_nest "$output_file_path.tmp" json > "$output_file_path${extension}"
 
-        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path${extension}" -i
+        rebuff "$output_file_path.json.tmp"
+        cat "$output_file_path.yml.tmp" | yq eval -o=json '.' >> "$output_file_path.json.tmp"
+
+        flat_obj_to_nest "$output_file_path.json.tmp" json > "$output_file_path${extension}"
+
+        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\", \"# ${header_8}\": \"${value_8}\"}}" "$output_file_path${extension}" -i
 
         # sort top level json keys alphabetically with yq
         yq eval 'sort_keys(.)' "$output_file_path${extension}" -i
         ;;
       *)
         FORMAT='envfile'
+
+        rebuff "$output_file_path.tmp"
+        while IFS= read -r var_line; do
+          empty=''
+          var_name=${var_line%%:*}
+          var_value=${var_line#*: }
+
+          # ignore empty arrays and objects
+          if [ "$var_value" = "[]" ]; then
+            empty='array'
+            var_value=''
+          elif [ "$var_value" = "{}" ]; then
+            empty='object'
+            var_value=''
+          fi
+
+          # if we are including blank values, write those to file
+          if [ -n "$empty" ]; then
+            if [ "$empty" = "array" ]; then
+              echo "# ${var_name} is an empty array" >> "$output_file_path.tmp"
+            elif [ "$empty" = "object" ]; then
+              echo "# ${var_name} is an empty object" >> "$output_file_path.tmp"
+            fi
+          elif [ -n "$var_value" ]; then
+            echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
+          fi
+        done < "$output_file_path.yml.tmp"
+        unset IFS
+
         touch "$output_file_path"
         sort "$output_file_path.tmp" | uniq > "$output_file_path"
         [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path"
@@ -564,7 +607,7 @@ EOF
     [ "$VERBOSITY" -ge "1" ] && {
       echo "[INFO] Output: $(realpath "${output_file_path}${extension}")"
     }
-    [ "$DEBUG" = "1" ] || rm "$output_file_path.tmp"
+    [ "$DEBUG" = "1" ] || rm "$output_file_path"*.tmp
   done
 fi
 
@@ -601,4 +644,4 @@ for var_value in $express_dump_commands; do
   }
 done
 
-# v1.4.5
+# v1.5.0

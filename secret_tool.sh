@@ -192,83 +192,47 @@ substr_in_str() {
   echo "$1" | grep -q "$2"
 }
 
-produce_configmap() {
-  env_file="$1"
+flat_obj_to_nest() {
+  env_file="$1" # flat json or yaml configmap file that we want to convert into nested
   FORMAT="$2"
 
-  [ "$FORMAT" != "yml" ] && [ "$FORMAT" != "yaml" ] && FORMAT='json'
-  extension="${env_file##*.}"
-
-  if [ ! -f "$env_file" ]; then
-    echo "[ERROR] File not found: $env_file"
-    exit 1
+  if [ "$FORMAT" = "json" ]; then
+    env_file=$(cat "$env_file")
+  else
+    # convert yaml file to json
+    env_file=$(yq eval -o=json '.' "$env_file")
   fi
-
-  [ "$extension" = "json" ] && {
-    cat "$env_file"
-    exit 0
-  }
-
-  [ "$extension" = "yml" ] || [ "$extension" = "yaml" ] && {
-    yq -o=json '.' "$env_file"
-    exit 0
-  }
-
-  yq_object="{}"
-
-  # Function to build nested objects using dots as delimiters
-  # TODO: if key part is an integer, it is treated as an array index
-  build_nested_object() {
-    key=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-    value="$2"
-    json="$3"
-
-    # Replace double underscores with dots
-    while [ "${key#*__}" != "$key" ]; do
-      key="${key%%__*}.${key#*__}"
-    done
-
-    # Use yq to set the value in the nested structure
-    json=$(echo "$json" | yq eval ".${key} = $value" -)
-
-    echo "$json"
-  }
-
-  # Read each line from the environment file
-  while IFS= read -r line; do
-    # Split the line into key and value
-    key=$(echo "$line" | cut -d '=' -f 1)
-    value=$(echo "$line" | cut -d '=' -f 2-)
-
-    # Remove surrounding single or double quotes from the value
-    if [ "${value#\"}" != "$value" ] && [ "${value%\"}" != "$value" ]; then
-      value="${value#\"}"
-      value="${value%\"}"
-    elif [ "${value#\'}" != "$value" ] && [ "${value%\'}" != "$value" ]; then
-      value="${value#\'}"
-      value="${value%\'}"
-    fi
-
-    # Handle numeric and string values correctly
-    if expr "$value" : '^[0-9]\+$' > /dev/null; then
-      yq_object=$(build_nested_object "$key" "$value" "$yq_object")
-    else
-      yq_object=$(build_nested_object "$key" "\"$value\"" "$yq_object")
-    fi
-
-  done < "$env_file"
-
+  # convert flat json to nested json
   inline_js_fixup="""
-    const unoptimised_obj=\`$(echo "$yq_object" | yq -o=json '.')\`;
+    const flat_env_obj = JSON.parse(\`$(echo "$env_file")\`);
+
+    // convert flat object to nested object
+    const nestify = (obj) => {
+      const result = {};
+      for (const key in obj) {
+        const keys = key.toLowerCase().split('__'); // convert key to lowercase
+        keys.reduce((acc, k, i) => {
+          if (i === keys.length - 1) {
+            acc[k] = obj[key];
+          } else {
+            acc[k] = acc[k] || {};
+          }
+          return acc[k];
+        }, result);
+      }
+      return result;
+    };
+
+    const nested_env_obj = nestify(flat_env_obj);
 
     const areAllKeysIntegers = obj => Object.keys(obj).every(key => /^\d+$/.test(key));
-    const normalizeJSON = (obj) => {
+    const normaliseJSON = (obj) => {
       const result = {};
       for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
           const value = obj[key];
           if (typeof value === 'object' && !Array.isArray(value)) {
-            const normalized = normalizeJSON(value);
+            const normalized = normaliseJSON(value);
             result[key] = areAllKeysIntegers(normalized) ? Object.values(normalized) : normalized;
           } else {
             result[key] = Array.isArray(value) ? Object.fromEntries(value.map((v, i) => [i, v])) : value;
@@ -278,28 +242,22 @@ produce_configmap() {
       return result;
     };
 
-    console.log(
-      JSON.stringify(normalizeJSON(JSON.parse(unoptimised_obj)), null, 2)
-    );
+    console.log(JSON.stringify(normaliseJSON(nested_env_obj), null, 2));
   """
-
-  # use JS runtime to normalise nested arrays
-  json_obj_normalised="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)" \
-    || json_obj_normalised="$(echo "$inline_js_fixup" | node)"
-
-  # Print the final JSON object
   if [ "$FORMAT" = "json" ]; then
-    [ -n "$json_obj_normalised" ] && {
-      echo "$json_obj_normalised"
+    {
+      echo "$inline_js_fixup" | bun run - 2> /dev/null
     } || {
-      echo "$yq_object" | yq -o=json '.' -P
+      echo "$inline_js_fixup" | node
     }
-  elif [ "$FORMAT" = "yml" ] || [ "$FORMAT" = "yaml" ]; then
-    [ -n "$json_obj_normalised" ] && {
-      echo "$json_obj_normalised" | yq -Poy
+  else # yaml
+    {
+      json_obj="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)"
     } || {
-      echo "$yq_object"
+      json_obj="$(echo "$inline_js_fixup" | node)"
     }
+    # convert json to yaml
+    echo "$json_obj" | yq -P
   fi
 }
 
@@ -411,13 +369,21 @@ if [ -n "$target_profiles" ]; then
         Object.keys(obj).reduce((acc, k) => {
           const pre = prefix.length ? prefix + '__' : '';
           if (Array.isArray(obj[k])) {
-            obj[k].forEach((v, i) => {
-              acc[pre + k + '__' + i] = v;
-            });
+        if (obj[k].length === 0) {
+          acc[pre + k] = []; // Include empty arrays
+        } else {
+          obj[k].forEach((v, i) => {
+            acc[pre + k + '__' + i] = v;
+          });
+        }
           } else if (typeof obj[k] === 'object' && obj[k] !== null) {
-            Object.assign(acc, flattenNestedArray(obj[k], pre + k));
+        if (Object.keys(obj[k]).length === 0) {
+          acc[pre + k] = {}; // Include empty objects
+        } else {
+          Object.assign(acc, flattenNestedArray(obj[k], pre + k));
+        }
           } else {
-            acc[pre + k] = obj[k];
+        acc[pre + k] = obj[k];
           }
           return acc;
         }, {});
@@ -427,68 +393,115 @@ if [ -n "$target_profiles" ]; then
         Object.keys(obj).reduce((acc, k) => {
           const pre = prefix.length ? prefix + '__' : '';
           if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-            Object.assign(acc, flattenNestedObjects(obj[k], pre + k));
+            if (Object.keys(obj[k]).length === 0) {
+              acc[pre + k] = {}; // Include empty objects
+            } else {
+              Object.assign(acc, flattenNestedObjects(obj[k], pre + k));
+            }
           } else {
             acc[pre + k] = obj[k];
           }
           return acc;
         }, {});
 
-      Object.entries(flattenNestedObjects(flattenNestedArray(profile_vars))).forEach(([key, value]) => {
-        console.log(key.toUpperCase() + '=\'\'\'' + value + '\'\'\'');
-      });
+      const flat_env_obj = flattenNestedObjects(flattenNestedArray(profile_vars));
+      const flat_yaml_env = Object.entries(flat_env_obj)
+        .map(([key, value]) => {
+
+          if (Array.isArray(value) && value.length === 0) {
+            return key.toUpperCase() + ': []';
+          } else if (typeof value === 'object' && Object.keys(value).length === 0) {
+            return key.toUpperCase() + ': {}';
+          } else {
+            return key.toUpperCase() + ': \'' + value + '\''; // this will fail if value contains single quotes !!!
+          }
+        })
+        .join(String.fromCharCode(10));
+
+      console.log(flat_yaml_env);
     """
     env_variables="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)" \
       || env_variables="$(echo "$inline_js_fixup" | node)"
+    [ "$DEBUG" = "1" ] && echo '[DEBUG] env_variables:' && echo "$env_variables"
 
     # uncomment next line for debugging
     # echo "All env variables: $env_variables"
 
+    # CONTINUE HERE ----------------------------------
+    # for YAML and JSON output formats temporary file gets created with flat map
+    # env_variables should include values from 1password before writing to temporary file
+
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     # ensure buffer is empty (prevent possible injections)
     printf "" > "$output_file_path.tmp"
+    case "$FORMAT" in
+      yml|yaml)
+        echo "$env_variables" >> "$output_file_path.tmp"
+        ;;
+      json)
+        echo "$env_variables" | yq eval -o=json '.' >> "$output_file_path.tmp"
+        ;;
+      *)
+        echo "$env_variables" | while IFS= read -r var_line; do
+          empty=''
+          var_name=${var_line%%:*}
 
-    # content itself
-    echo "$env_variables" | while IFS= read -r var_line; do
-      var_name=${var_line%%=*}
+          # unwrap var_value (the substring in between of triple quotes of var_line)
+          var_value=${var_line#*: \'}
+          var_value=${var_value%\'}
 
-      # unwrap var_value (the substring in between of triple quotes of var_line)
-      var_value=${var_line#*=\'\'\'}
-      var_value=${var_value%\'\'\'}
+          # ignore empty arrays and objects
+          if [ "$var_value" = "$var_name: []" ]; then
+            empty='array'
+            var_value=''
+          elif [ "$var_value" = "$var_name: {}" ]; then
+            empty='object'
+            var_value=''
+          fi
 
-      # if local env variable override is present, use that
-      local_override=$(env | grep "^${var_name}=")
-      local_override=${local_override#*=}
+          # if local env variable override is present, use that
+          local_override=$(env | grep "^${var_name}=")
+          local_override=${local_override#*=}
 
-      if [ -n "$local_override" ]; then
-        var_value="${local_override}"
-        [ "$FORMAT" = "envfile" ] && echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
-      else
-        # otherwise, use value from secret map
-        extract_value_from_op_ref "$var_value" > /dev/null
-      fi
+          if [ -n "$local_override" ]; then
+            var_value="${local_override}"
+            [ "$FORMAT" = "envfile" ] && echo "# $var_name <- overridden from local env" >> "$output_file_path.tmp"
+          else
+            # otherwise, use value from secret map
+            extract_value_from_op_ref "$var_value" > /dev/null
+          fi
 
-      # if we are including blank values, write those to file
-      if [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
-        re_num='^[0-9]+$'
-        re_yaml_bool=$allowed_boolean_regexp
-        if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
-          # the strings that are not numbers or booleans are quoted
-          case "$var_value" in
-            *\$*)
-              var_value="\"${var_value}\""
-              ;;
-            *)
-              # else surround non-numeric values with single quotes
-              var_value="'${var_value}'"
-              ;;
-          esac
-        fi
-        echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
-      else
-        [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
-      fi
-    done
-    unset IFS
+          # if we are including blank values, write those to file
+          if [ -n "$empty" ]; then
+            if [ "$empty" = "array" ]; then
+              echo "# ${var_name} is an empty array" >> "$output_file_path.tmp"
+            elif [ "$empty" = "object" ]; then
+              echo "# ${var_name} is an empty object" >> "$output_file_path.tmp"
+            fi
+          elif [ -n "$var_value" ] || [ "$INCLUDE_BLANK" = "1" ]; then
+            re_num='^[0-9]+$'
+            re_yaml_bool=$allowed_boolean_regexp
+            if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
+              # the strings that are not numbers or booleans are quoted
+              case "$var_value" in
+                *\$*)
+                  var_value="\"${var_value}\""
+                  ;;
+                *)
+                  # else surround non-numeric values with single quotes
+                  var_value="'${var_value}'"
+                  ;;
+              esac
+            fi
+            echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
+          else
+            [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)" #>> $output_file_path.tmp
+          fi
+        done
+        unset IFS
+        ;;
+    esac
 
     header_1='Content type'
     value_1='environment variables and secrets'
@@ -527,16 +540,18 @@ EOF
 
     case "$FORMAT" in
       yml|yaml)
-        produce_configmap "$output_file_path.tmp" yml > "$output_file_path.yml"
-        [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path.yml"
+        extension='.yml'
+        flat_obj_to_nest "$output_file_path.tmp" yml > "$output_file_path.yml"
+        [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers "$output_file_path${extension}"
         ;;
       json)
-        produce_configmap "$output_file_path.tmp" json > "$output_file_path.json"
+        extension='.json'
+        flat_obj_to_nest "$output_file_path.tmp" json > "$output_file_path${extension}"
 
-        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path.json" -i
+        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\"}}" "$output_file_path${extension}" -i
 
         # sort top level json keys alphabetically with yq
-        yq eval 'sort_keys(.)' "$output_file_path.json" -i
+        yq eval 'sort_keys(.)' "$output_file_path${extension}" -i
         ;;
       *)
         FORMAT='envfile'
@@ -549,7 +564,7 @@ EOF
     [ "$VERBOSITY" -ge "1" ] && {
       echo "[INFO] Output: $(realpath "${output_file_path}${extension}")"
     }
-    rm "$output_file_path.tmp"
+    [ "$DEBUG" = "1" ] || rm "$output_file_path.tmp"
   done
 fi
 
@@ -578,7 +593,7 @@ for var_value in $express_dump_commands; do
     if [ -f "$file_path" ]; then
       [ -n "$var_path" ] \
         && grep "^$var_path=" "$file_path" | cut -d'=' -f2 \
-        || produce_configmap "$file_path" "${FORMAT:-json}"
+        || flat_obj_to_nest "$file_path" "${FORMAT:-json}"
     else
       echo "[ERROR] File not found: $file_path"
       exit 1

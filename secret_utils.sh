@@ -127,7 +127,8 @@ case $routine in
     rm "$SKIP_OP_MARKER" 2> /dev/null
 
     SKIP_OP_MARKER_WRITE=1 \
-    TEST_VAR_LOCAL_OVERRIDE=overridden \
+    TEST_VAR_LOCAL_OVERRIDE1=overridden \
+    TEST_VAR_LOCAL_OVERRIDE2='!!' \
       "$script_dir/secret_tool.sh" \
         all_tests pat
 
@@ -169,12 +170,20 @@ case $routine in
       errors=$((errors + 1))
     fi
 
-    # local env override
-    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE='overridden'" "${FILE_NAME_BASE}all_tests"); then
-      echo '[OK] Locally overridden value was used'
+    # local env override 1
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE1='overridden'" "${FILE_NAME_BASE}all_tests"); then
+      echo '[OK] Locally overridden value 1 was used'
     else
-      echo '[ERROR] Locally overridden value was ignored'
+      echo '[ERROR] Locally overridden value 1 was ignored'
       errors=$((errors + 1))
+    fi
+
+    # local env override 2
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE2='present'" "${FILE_NAME_BASE}all_tests"); then
+      echo '[ERROR] Locally overridden value 2 was ignored (discard)'
+      errors=$((errors + 1))
+    else
+      echo '[OK] Locally overridden value 2 was used (discard)'
     fi
 
     # simple number

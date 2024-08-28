@@ -1,4 +1,6 @@
 #!/bin/sh
+
+TOOL_VERSION=1.6.0
 FALLBACK=$(ps -p $$ -o comm=)
 
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
@@ -47,7 +49,7 @@ help_text="
     $cmd_name dev test                         # dump secrets for these two profiles
     VAR123='' $cmd_name                        # ignore local override of this variable
     SECRET_MAP='~/alt-map.yml' $cmd_name test  # use this map file
-    INCLUDE_BLANK=1 $cmd_name dev              # dump all, also empty values
+    EXCLUDE_EMPTY_STRINGS=1 $cmd_name dev      # dump all, exclude blank values
     FILE_NAME_BASE='/tmp/.env.' $cmd_name dev  # start file name with this (create file /tmp/.env.dev)
     FILE_POSTFIX='.sh' $cmd_name prod          # append this to file name end (.env.prod.sh)
     EXTRACT='ci test' $cmd_name                # set target profiles via variable (same as \`$cmd_name ci test\`)
@@ -59,7 +61,8 @@ actual_path=$(readlink -f "$0")
 script_dir=$(dirname "$actual_path")
 
 get_file_modified_date() {
-  {
+  filesystem_info_only="$2"
+  [ -z "$filesystem_info_only" ] && {
     # try grabbing info from git
     file_date=$(git log -1 --pretty="format:%cI" -- "$1" 2> /dev/null)
     commit=$(git log -1 --pretty="commit %H" -- "$1" 2> /dev/null)
@@ -69,12 +72,12 @@ get_file_modified_date() {
       file_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S%z" "$1")
     else
       file_date=$(stat --format="%y" "$1")
-      file_date=$(printf '%s\n' "$file_date" | tr 'T' ' at ')
+      file_date=$(printf '%s\n' "$file_date")
     fi
     commit=''
   }
   modified_date_string="$file_date $commit"
-  modified_date_string=$(printf '%s\n' "$modified_date_string" | tr 'T' ' at ')
+  modified_date_string=$(printf '%s\n' "$modified_date_string")
   echo "$modified_date_string"
 }
 
@@ -83,14 +86,43 @@ show_help() {
   exit 0
 }
 
-if [ "$1" = "--version" ]; then
+get_own_version() {
   st_file_name=secret_tool.sh
   [ -f "$script_dir/secret_utils.sh" ] \
     && cd "$script_dir" \
     || st_file_name=secret_tool
 
-  st_version="$(cat "$script_dir/$st_file_name" | tail -n 2 | xargs | cut -d' ' -f2) $(get_file_modified_date "$script_dir/$st_file_name")" || exit 1
+  st_version="$TOOL_VERSION $(get_file_modified_date "$script_dir/$st_file_name")" || exit 1
   echo "$st_version"
+}
+
+validate_minimal_version() {
+  NEWER_VERSION=$(printf "$1\n$2\n" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g | tail -n 1)
+
+  if [ "$NEWER_VERSION" = "$2" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+validate_approved_version() {
+  APPROVED_TOOL_VERSION=$(op read op://Employee/SECRET_TOOL/version 2> /dev/null)
+
+  [ "$DEBUG" = "1" ] && echo "[DEBUG] Approved tool version: $APPROVED_TOOL_VERSION. Installed: $TOOL_VERSION"
+
+  if [ "$APPROVED_TOOL_VERSION" = "latest" ]; then
+    return 0
+  elif [ -n "$APPROVED_TOOL_VERSION" ] && validate_minimal_version $TOOL_VERSION $APPROVED_TOOL_VERSION; then
+    return 0
+  else
+     echo "[ERROR] You need to approve version '$TOOL_VERSION' of secret_tool in 1password (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)"
+    return 1
+  fi
+}
+
+if [ "$1" = "--version" ]; then
+  get_own_version
   exit 0
 fi
 
@@ -162,6 +194,17 @@ if [ -n "$target_profiles" ] && [ ! -f "$SECRET_MAP" ]; then
   exit 1
 fi
 
+# compare top level tool_version key value from secret map with current tool version
+if [ "$SKIP_REQ_CHECK" != "1" ]; then
+  MINIMALLY_REQUIRED_VERSION=$(yq -r '.tool_version' "$SECRET_MAP")
+  validate_minimal_version $MINIMALLY_REQUIRED_VERSION $TOOL_VERSION || {
+    echo "[ERROR] Minimally required secret_tool version for secret_map \"$SECRET_MAP\": ${MINIMALLY_REQUIRED_VERSION}. Update secret_tool or use SKIP_REQ_CHECK=1 to bypass this check."
+    echo
+    get_own_version
+    exit 1
+  }
+fi
+
 if [ "$1" = "--profiles" ] || [ "$1" = "--all" ]; then
   express_dump_commands=''
   target_profiles=$(yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--')
@@ -173,6 +216,16 @@ fi
 
 # print help (head of current file) if no arguments are provided
 [ -z "$express_dump_commands" ] && [ -z "$target_profiles" ] && show_help
+
+bak_prev_file() {
+  filename="$1"
+  if [ -f "$filename" ]; then
+    filename_friendly_date_string="$(get_file_modified_date "$filename" 1 | tr ' ' '_' | tr ':' '-')"
+    filename_friendly_date_string=${filename_friendly_date_string%%.*}
+    bak_filename="${filename}.${filename_friendly_date_string}.bak"
+    mv "$filename" "$bak_filename"
+  fi
+}
 
 rebuff() {
   filename="$1"
@@ -272,7 +325,11 @@ if [ -f "$SKIP_OP_MARKER" ]; then
   [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER: $SKIP_OP_MARKER"
   export SKIP_OP_USE=1
 elif [ "$SKIP_OP_USE" != "1" ]; then
+
+  [ "$DEBUG" = "1" ] && echo "[DEBUG] Checking 1password login status..."
+
   [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
+    validate_approved_version || exit 1
     [ "$VERBOSITY" -ge "1" ] && echo '[INFO] 1password login confirmed'
   } || {
     [ "$VERBOSITY" -ge "1" ] && echo '[INFO] Trying to log in to 1password...'
@@ -289,7 +346,9 @@ elif [ "$SKIP_OP_USE" != "1" ]; then
 
       OP_SESSION_EVAL=$(echo "$OP_VAL" | grep export)
       [ -n "$OP_SESSION_EVAL" ] && {
-        eval "$(echo "$OP_SESSION_EVAL")" && xyn=''
+        eval "$(echo "$OP_SESSION_EVAL")" && {
+          validate_approved_version && xyn='' || exit 1
+        }
       }
 
       if [ "$xyn" = "y" ]; then
@@ -430,13 +489,16 @@ if [ -n "$target_profiles" ]; then
     """
     env_variables="$(echo "$inline_js_fixup" | bun run - 2> /dev/null)" \
       || env_variables="$(echo "$inline_js_fixup" | node)"
-    [ "$DEBUG" = "1" ] && echo '[DEBUG] env_variables:' && echo "$env_variables"
+    [ "$DEBUG" = "1" ] && echo '[DEBUG] env_variables:' && echo "$env_variables" | while IFS= read -r line; do
+      echo "  $line"
+    done
 
     # uncomment next line for debugging
     # echo "All env variables: $env_variables"
 
-    # record of locally overriden variables
+    # record locally overriden and blank variables
     locally_overriden_variables=''
+    excluded_blank_variables=''
 
     # ensure buffer is empty (prevent possible injections)
     rebuff "$output_file_path.yml.tmp"
@@ -457,8 +519,6 @@ if [ -n "$target_profiles" ]; then
       elif [ "$var_value" = "$var_name: {}" ]; then
         empty='object'
         var_value=''
-      elif [ -z "$var_value" ] && [ "$INCLUDE_BLANK" = "1" ]; then
-        var_value="''"
       fi
 
       # if local env variable override is present, use that
@@ -466,12 +526,30 @@ if [ -n "$target_profiles" ]; then
       local_override=${local_override#*=}
 
       if [ -n "$local_override" ]; then
-        var_value="${local_override}"
+        # treat "!!" as a sign to set empty variable
+        if [ "$local_override" = "!![]" ]; then
+          empty='array'
+          var_value=''
+        elif [ "$local_override" = "!!{}" ]; then
+          empty='object'
+          var_value=''
+        elif [ "$local_override" = "!!" ]; then
+          empty='string'
+          var_value=''
+        else
+          var_value="${local_override}"
+        fi
         locally_overriden_variables="${locally_overriden_variables} ${var_name}"
-      else
-        # otherwise, use value from secret map
-        extract_value_from_op_ref "$var_value" > /dev/null
+      elif [ -z "$var_value" ]; then
+        [ -z "$empty" ] && empty='string'
       fi
+
+      var_value=$(extract_value_from_op_ref "$var_value")
+      if [ -z "$var_value" ]; then
+        [ -z "$empty" ] && empty='string'
+      fi
+
+      [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' = '${var_value}'"
 
       # if we are including blank values, write those to file
       if [ -n "$empty" ]; then
@@ -479,6 +557,13 @@ if [ -n "$target_profiles" ]; then
           echo "${var_name}: []" >> "$output_file_path.yml.tmp"
         elif [ "$empty" = "object" ]; then
           echo "${var_name}: {}" >> "$output_file_path.yml.tmp"
+        else
+          if [ "$EXCLUDE_EMPTY_STRINGS" = "1" ]; then
+            excluded_blank_variables="${excluded_blank_variables} ${var_name}"
+          else
+            [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use EXCLUDE_EMPTY_STRINGS=1 to exclude it from output)"
+            echo "${var_name}: ''" >> "$output_file_path.yml.tmp"
+          fi
         fi
       elif [ -n "$var_value" ]; then
         re_num='^[0-9]+$'
@@ -497,12 +582,15 @@ if [ -n "$target_profiles" ]; then
           esac
         fi
         echo "${var_name}: ${var_value}" >> "$output_file_path.yml.tmp"
-      else
-        [ "$DEBUG" = '1' ] && echo "[DEBUG] ${target_profile} | '${var_name}' is blank (use INCLUDE_BLANK=1 to include it anyway)"
       fi
 
       rebuff "$output_file_path.override.tmp"
       echo "$locally_overriden_variables" > "$output_file_path.override.tmp"
+
+      [ "$EXCLUDE_EMPTY_STRINGS" = "1" ] && {
+        rebuff "$output_file_path.excluded.tmp"
+        echo "$excluded_blank_variables" > "$output_file_path.excluded.tmp"
+      }
     done
 
     header_1='Content type'
@@ -530,6 +618,10 @@ if [ -n "$target_profiles" ]; then
     locally_overriden_variables=$(cat "$output_file_path.override.tmp" | xargs)
     value_8="%w[${locally_overriden_variables}]"
 
+    header_9='Excluded (blank) string variables'
+    [ "$EXCLUDE_EMPTY_STRINGS" = "1" ] && excluded_blank_variables=$(cat "$output_file_path.excluded.tmp" | xargs)
+    value_9="%w[${excluded_blank_variables}]"
+
     [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers() {
       cat <<EOF > "$1"
 # ${header_1}: ${value_1}
@@ -540,6 +632,7 @@ if [ -n "$target_profiles" ]; then
 # ${header_6}: ${value_6}
 # ${header_7}: ${value_7}
 # ${header_8}: ${value_8}
+# ${header_9}: ${value_9}
 
 $(cat "$1")
 EOF
@@ -548,6 +641,7 @@ EOF
     case "$FORMAT" in
       yml|yaml)
         extension='.yml'
+        [ "$LIVE_DANGEROUSLY" != "1" ] && bak_prev_file "$output_file_path${extension}"
 
         rebuff "$output_file_path.yml"
 
@@ -556,19 +650,21 @@ EOF
         ;;
       json)
         extension='.json'
+        [ "$LIVE_DANGEROUSLY" != "1" ] && bak_prev_file "$output_file_path${extension}"
 
         rebuff "$output_file_path.json.tmp"
         cat "$output_file_path.yml.tmp" | yq eval -o=json '.' >> "$output_file_path.json.tmp"
 
         flat_obj_to_nest "$output_file_path.json.tmp" json > "$output_file_path${extension}"
 
-        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\", \"# ${header_8}\": \"${value_8}\"}}" "$output_file_path${extension}" -i
+        [ "$SKIP_HEADERS_USE" != "1" ] && yq eval ". += {\"//\": {\"# ${header_1}\": \"${value_1}\", \"# ${header_2}\": \"${value_2}\", \"# ${header_3}\": \"${value_3}\", \"# ${header_4}\": \"${value_4}\", \"# ${header_5}\": \"${value_5}\", \"# ${header_6}\": \"${value_6}\", \"# ${header_7}\": \"${value_7}\", \"# ${header_8}\": \"${value_8}\", \"# ${header_9}\": \"${value_9}\"}}" "$output_file_path${extension}" -i
 
         # sort top level json keys alphabetically with yq
         yq eval 'sort_keys(.)' "$output_file_path${extension}" -i
         ;;
       *)
         FORMAT='envfile'
+        [ "$LIVE_DANGEROUSLY" != "1" ] && bak_prev_file "$output_file_path"
 
         rebuff "$output_file_path.tmp"
         while IFS= read -r var_line; do
@@ -592,7 +688,7 @@ EOF
             elif [ "$empty" = "object" ]; then
               echo "# ${var_name} is an empty object" >> "$output_file_path.tmp"
             fi
-          elif [ -n "$var_value" ]; then
+          else #if [ -n "$var_value" ]; then
             echo "${var_name}=${var_value}" >> "$output_file_path.tmp"
           fi
         done < "$output_file_path.yml.tmp"
@@ -643,5 +739,3 @@ for var_value in $express_dump_commands; do
     fi
   }
 done
-
-# v1.5.0

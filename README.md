@@ -114,6 +114,35 @@ profiles:
 # ^ a totally valid map including a mixture of input formats
 ```
 
+### Inline arrays
+
+If you need to declare an array you have a few options:
+
+1. Use YAML arrays:
+```yaml
+my_array:
+  - one
+  - two
+  - three
+```
+
+2. Use JSON array notation for YAML:
+```yaml
+my_array: ['one', 'two', 'three']
+```
+
+3. Use a comma-separated string variable (parse later in the code):
+(this one is useful if code will work with raw value of env variable)
+```yaml
+my_arrayish_string: 'one,two,three'
+```
+
+4. [Special cases] array of quoted values
+(this one is used, for example, in `postgres` container image environment: `POSTGRES_MULTIPLE_DATABASES`)
+```yaml
+my_special_string: '"quoted value 1","quoted value 2","quoted value 3"'
+```
+
 
 ## Ouput format (machine- or human-readable)
 

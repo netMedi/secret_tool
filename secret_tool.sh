@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TOOL_VERSION=1.6.0
+TOOL_VERSION=1.6.1
 FALLBACK=$(ps -p $$ -o comm=)
 
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
@@ -42,7 +42,7 @@ help_text="
     $cmd_name --update                         # perform self-update and exit (only for full git install)
     $cmd_name --test                           # perform self-test and exit (only for full git install)
     $cmd_name --profiles                       # list all available profiles and exit
-    $cmd_name --profiles                       # list all available profiles and exit
+    $cmd_name --all                            # dump secrets for all profiles
 
   Examples:
     $cmd_name staging                          # dump secrets for this profile
@@ -207,7 +207,7 @@ fi
 
 if [ "$1" = "--profiles" ] || [ "$1" = "--all" ]; then
   express_dump_commands=''
-  target_profiles=$(yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--')
+  target_profiles=$(yq e ".profiles | keys | .[]" "$SECRET_MAP" | tail -n +1 | grep -v '^--' | sort)
   [ "$1" = "--profiles" ] && {
     echo "$target_profiles"
     exit 0
@@ -230,6 +230,8 @@ bak_prev_file() {
 rebuff() {
   filename="$1"
   rm "$filename" 2> /dev/null
+  directory="$(dirname "$filename")"
+  [ ! -d "${directory}" ] && mkdir -p "${directory}"
   touch "$filename"
 }
 
@@ -400,12 +402,20 @@ fi
 if [ -n "$target_profiles" ]; then
   [ "$VERBOSITY" -ge "1" ] && {
     echo
-    echo "[INFO] Extracting values ($target_profiles)..."
+    echo "[INFO] Extracting values ($(echo "$target_profiles" | xargs))..."
   }
 
   for target_profile in $target_profiles; do
     # verify that target profile exists
-    if yq e ".profiles | keys | .[] | select(. == \"${target_profile}\" )" "$SECRET_MAP" | wc -l | grep "0" > /dev/null 2>&1; then
+    found_profile=false
+    for profile in $(yq e ".profiles | keys | .[]" "$SECRET_MAP"); do
+      if [ "$profile" = "$target_profile" ]; then
+        found_profile=true
+        break
+      fi
+    done
+
+    if [ "$found_profile" = false ]; then
       echo "[ERROR] Profile validation failed: profile '${target_profile}' was not found in $SECRET_MAP"
       FAILED=1
     fi
@@ -426,6 +436,7 @@ if [ -n "$target_profiles" ]; then
 
   for target_profile in $target_profiles; do
     output_file_path="${FILE_NAME_BASE}${target_profile}${FILE_POSTFIX}"
+    rebuff "$output_file_path.tmp"
     rm "$output_file_path"*.tmp > /dev/null 2>&1
 
     inline_js_fixup="""
@@ -476,11 +487,11 @@ if [ -n "$target_profiles" ]; then
         .map(([key, value]) => {
 
           if (Array.isArray(value) && value.length === 0) {
-            return key.toUpperCase() + ': []';
+            return key.toLowerCase() + ': []';
           } else if (typeof value === 'object' && Object.keys(value).length === 0) {
-            return key.toUpperCase() + ': {}';
+            return key.toLowerCase() + ': {}';
           } else {
-            return key.toUpperCase() + ': \'' + value + '\''; // this will fail if value contains single quotes !!!
+            return key.toLowerCase() + ': \'' + value + '\''; // this will fail if value contains single quotes !!!
           }
         })
         .join(String.fromCharCode(10));
@@ -522,7 +533,8 @@ if [ -n "$target_profiles" ]; then
       fi
 
       # if local env variable override is present, use that
-      local_override=$(env | grep "^${var_name}=")
+      env_var_name=$(echo "$var_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+      local_override=$(env | grep "^${env_var_name}=")
       local_override=${local_override#*=}
 
       if [ -n "$local_override" ]; then
@@ -670,6 +682,10 @@ EOF
         while IFS= read -r var_line; do
           empty=''
           var_name=${var_line%%:*}
+
+          # make names uppercase and replace dashes with underscores
+          var_name=$(echo "$var_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+
           var_value=${var_line#*: }
 
           # ignore empty arrays and objects

@@ -1,0 +1,16 @@
+{
+  "name": "secret_tool",
+  "version": "2.0.0",
+  "scripts": {
+    "selftest": "SECRET_MAP=./tests/secret_map.yml sh ./script/selftest.sh",
+    "compile": "sh ./script/compile.sh"
+  },
+  "type": "module",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.8",
+    "@types/js-yaml": "^4.0.9"
+  }
+}

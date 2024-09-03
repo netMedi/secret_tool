@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TOOL_VERSION=1.6.1
+TOOL_VERSION=1.6.2
 FALLBACK=$(ps -p $$ -o comm=)
 
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
@@ -138,6 +138,7 @@ FORMAT=${FORMAT:-envfile}
 FORMAT=$(echo "$FORMAT" | tr '[:upper:]' '[:lower:]')
 
 SECRET_MAP=${SECRET_MAP:-./secret_map.yml}
+EXCLUDE_EMPTY_STRINGS=${EXCLUDE_EMPTY_STRINGS:-1}
 FILE_NAME_BASE=${FILE_NAME_BASE:-./.env.} # this can be also be path
 FILE_POSTFIX=${FILE_POSTFIX:-''} # this can be also be file extension
 

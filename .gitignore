@@ -1,3 +1,9 @@
-# products of secret_tool
+### products of secret_tool
 /.env*
 /tests/.env*
+
+dist/*
+!dist/.keep
+
+#bun.lockb
+node_modules

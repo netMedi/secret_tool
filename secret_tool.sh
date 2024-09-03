@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TOOL_VERSION=1.6.2
+TOOL_VERSION=1.6.3
 FALLBACK=$(ps -p $$ -o comm=)
 
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
@@ -108,16 +108,62 @@ validate_minimal_version() {
 
 validate_approved_version() {
   APPROVED_TOOL_VERSION=$(op read op://Employee/SECRET_TOOL/version 2> /dev/null)
+  exit_code=$?
 
-  [ "$DEBUG" = "1" ] && echo "[DEBUG] Approved tool version: $APPROVED_TOOL_VERSION. Installed: $TOOL_VERSION"
+  if [ "$exit_code" -ne 0 ]; then
+    [ "$DEBUG" = "1" ] && echo "[ERROR] Could not read approved version from 1password"
+    return 1
+  fi
 
   if [ "$APPROVED_TOOL_VERSION" = "latest" ]; then
     return 0
   elif [ -n "$APPROVED_TOOL_VERSION" ] && validate_minimal_version $TOOL_VERSION $APPROVED_TOOL_VERSION; then
     return 0
   else
-     echo "[ERROR] You need to approve version '$TOOL_VERSION' of secret_tool in 1password (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)"
-    return 1
+    [ -n "$APPROVED_TOOL_VERSION" ] && echo "[INFO] Approved secret tool version: $APPROVED_TOOL_VERSION"
+    echo "[ERROR] You need to approve version '$TOOL_VERSION' of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)"
+
+    [ -n "$SKIP_OP_MARKER_WRITE" ] && {
+      touch "$SKIP_OP_MARKER"
+      [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER written: $SKIP_OP_MARKER"
+    }
+
+    # continue without 1password or exit
+    if [ "$xyn" = "y" ]; then
+      xyn=''
+      while [ "$xyn" = "" ]; do
+        echo "Try extracting OP secrets regardless?"
+        echo "  Y (or Enter) = yes, ignore version mismatch"
+        echo "  n = no, continue without 1password"
+        echo "  x - just exit"
+        read -r xyn
+
+        case "$xyn" in
+          [Yy]* )
+            [ "$VERBOSITY" -ge "1" ] && {
+              echo
+              echo '[INFO] trying to extract OP secrets...'
+            }
+            ;;
+          [Nn]* )
+            SKIP_OP_USE=1
+            return 0
+            ;;
+          [Xx]* )
+            kill 0
+            ;;
+          * )
+            [ -z "$xyn" ] && {
+              xyn='y'
+            } || {
+              echo '[ Please answer "y", "n", or "x" (single letter, no quotes) ]'
+              echo
+              xyn=''
+            }
+            ;;
+        esac
+      done
+    fi
   fi
 }
 
@@ -331,10 +377,9 @@ elif [ "$SKIP_OP_USE" != "1" ]; then
 
   [ "$DEBUG" = "1" ] && echo "[DEBUG] Checking 1password login status..."
 
-  [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && {
-    validate_approved_version || exit 1
+  if [ "$(env | grep OP_SESSION_ | wc -c)" -gt "1" ] && validate_approved_version; then
     [ "$VERBOSITY" -ge "1" ] && echo '[INFO] 1password login confirmed'
-  } || {
+  else
     [ "$VERBOSITY" -ge "1" ] && echo '[INFO] Trying to log in to 1password...'
     xyn='y'
     # signin manually if 1password eval signin has not been done yet
@@ -357,7 +402,7 @@ elif [ "$SKIP_OP_USE" != "1" ]; then
       if [ "$xyn" = "y" ]; then
         xyn=''
         while [ "$xyn" = "" ]; do
-          echo "Do you want to retry logging in to 1password?"
+          echo "Retry logging in to 1password?"
           echo "  Y (or Enter) = yes, retry"
           echo "  n = no, continue without 1password"
           echo "  x - just exit"
@@ -390,7 +435,7 @@ elif [ "$SKIP_OP_USE" != "1" ]; then
         done
       fi
     done
-  }
+  fi
 fi
 
 if [ -n "$SKIP_OP_USE" ]; then
@@ -628,11 +673,11 @@ if [ -n "$target_profiles" ]; then
     value_7="$(get_file_modified_date "$SECRET_MAP")"
 
     header_8='Locally overriden variables'
-    locally_overriden_variables=$(cat "$output_file_path.override.tmp" | xargs)
+    locally_overriden_variables=$(cat "$output_file_path.override.tmp" | tr '[:lower:]' '[:upper:]' | xargs)
     value_8="%w[${locally_overriden_variables}]"
 
     header_9='Excluded (blank) string variables'
-    [ "$EXCLUDE_EMPTY_STRINGS" = "1" ] && excluded_blank_variables=$(cat "$output_file_path.excluded.tmp" | xargs)
+    [ "$EXCLUDE_EMPTY_STRINGS" = "1" ] && excluded_blank_variables=$(cat "$output_file_path.excluded.tmp" | tr '[:lower:]' '[:upper:]' | xargs)
     value_9="%w[${excluded_blank_variables}]"
 
     [ "$SKIP_HEADERS_USE" != "1" ] && prepend_headers() {

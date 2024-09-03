@@ -244,7 +244,8 @@ dev-extended:
 Notice how profile to derive from is marked with `&dev` and the new profile has `<<: *dev` essentially including existing profile as a template to modify and extend.
 
 
-
 ## Modifying secret_tool scripts
+
+Recommended VS Code extensions: `oven.bun-vscode`.
 
 After making changes verify all the scripts with shellcheck: `./.posix_verify.sh`

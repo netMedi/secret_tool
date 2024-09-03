@@ -6,9 +6,7 @@ if command -v bun > /dev/null 2>&1; then
   bun_runner=bun
 else
   bun_runner="$CONTAINER_TOOL run \
-    -e FORMAT \
-    -e OUTPUT_PATH \
-    -e SECRET_MAP \
+    $(env | while read -r line; do echo "--env $line"; done) \
       --rm -it -v $(pwd):/app -w /app oven/bun:alpine bun"
 fi
 

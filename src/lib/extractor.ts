@@ -1,7 +1,7 @@
 import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import opValueOrLiteral from './handlerOp';
+import opValueOrLiteral, { getOpAuth } from './handlerOp';
 
 type SecretProps = {
   secretMapPath: string;
@@ -213,7 +213,7 @@ const formatOutput = (
   }
 };
 
-const output = (
+const output = async (
   localOverrides: EnvMap,
   cliArguments: string[]
 ) => {
@@ -227,6 +227,10 @@ const output = (
     extract: castStringArr(process.env.EXTRACT),
     skipOpUse: castBool(process.env.SKIP_OP_USE),
   } as SecretProps;
+
+  if (!secretProps.skipOpUse) {
+    await getOpAuth();
+  }
 
   let secretMap: EnvMap;
   // Get document, or throw exception on error

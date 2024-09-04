@@ -2,6 +2,7 @@
 
 import pkgInfo from "../package.json" with { type: "json" };
 import output from "./lib/extractor";
+import { getOpAuth } from "./lib/handlerOp";
 
 const cmd_name = 'secret_tool';
 const helpText = `
@@ -32,7 +33,7 @@ const helpText = `
 const displayHelp = () => console.log(helpText.slice(1, -1));
 const displayVersion = () => console.log(pkgInfo.version);
 
-const main = () => {
+const main = async () => {
   const cliArguments = Bun.argv.slice(2);
 
   if (cliArguments.includes('--help')) {
@@ -52,13 +53,17 @@ const main = () => {
 
   // TODO
   if (cliArguments.includes('--test')) {
+    await getOpAuth(true);
+
+    // include test logic here...
+
     process.exit(0);
   }
 
   // console.dir(process.env);
   // process.exit(0);
 
-  const exitCode: number | undefined = output(process.env, cliArguments);
+  const exitCode: number | undefined = await output(process.env, cliArguments);
   switch (exitCode) {
     case 0:
       break;

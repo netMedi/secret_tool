@@ -627,7 +627,17 @@ if [ -n "$target_profiles" ]; then
         re_num='^[0-9]+$'
         re_yaml_bool=$allowed_boolean_regexp
         if ! (echo "$var_value" | grep -Eq "$re_num") && ! (echo "$var_value" | grep -Eq "$re_yaml_bool"); then
-          var_value="\"${var_value}\""
+          # the strings that are not numbers or booleans are quoted
+          case "$var_value" in
+            *\$*|*\'*)
+              # if value has dollar sign or single quotes, surround with "
+              var_value="\"${var_value}\""
+              ;;
+            *)
+              # else surround non-numeric values with '
+              var_value="'${var_value}'"
+              ;;
+          esac
         fi
         echo "${var_name}: ${var_value}" >> "$output_file_path.yml.tmp"
       fi

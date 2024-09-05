@@ -12,6 +12,9 @@ type SecretProps = {
   filePostfix: string;
   extract: string[];
   skipOpUse: boolean;
+
+  skipOpMarker: string | undefined;
+  skipOpMarkerWrite: boolean;
 };
 type EnvMap = { [key: string]: any };
 
@@ -88,12 +91,21 @@ const overrideFlatObj = (
         break;
       default:
         if (typeof inputObj[key] === 'string') {
-          inputObj[key] = opValueOrLiteral(inputObj[key]);
+          inputObj[key] = opValueOrLiteral(inputObj[key], secretProps.skipOpUse);
         }
     }
   }
   return inputObj;
 }
+
+// replaces surrounding double-quotes with single-quotes
+// if there are no single-quotes or dollars inside
+const switchQuotes = (val: string) => {
+  if (!val.startsWith('"')) return val;
+  return (val.includes("'") || val.includes("$"))
+    ? val
+    : `'${val.slice(1, -1)}'`;
+};
 
 const envFileContent = (inputObj: object) => {
   const flatObj = flattenObj(inputObj);
@@ -105,7 +117,16 @@ const envFileContent = (inputObj: object) => {
       const [key, ...rest] = line.split(separator);
       const value = rest.join(separator);
       if (key !== '' && key.indexOf('--') === -1) {
-        envfileString = envfileString + `${key.toUpperCase().replaceAll('-', '_')}=${value}\n`
+        switch (value) {
+          case '[]':
+            envfileString = envfileString + `# ${key.toUpperCase().replaceAll('-', '_')} is an empty array\n`
+            break;
+          case '{}':
+            envfileString = envfileString + `# ${key.toUpperCase().replaceAll('-', '_')} is an empty object\n`
+            break;
+          default:
+            envfileString = envfileString + `${key.toUpperCase().replaceAll('-', '_')}=${switchQuotes(value)}\n`
+        }
       }
     })
 
@@ -167,7 +188,19 @@ const jsonFileContent = (inputObj: object) => {
 };
 const yamlFileContent = (inputObj: object) => {
   const nestedObj = nestifyObj(inputObj);
-  return yaml.dump(nestedObj, { quotingType: '"', indent: 2 });
+  const doubleQuotedYaml = yaml.dump(nestedObj, { quotingType: '"', indent: 2 });
+
+  /*
+  const lines = [];
+  for (const line of doubleQuotedYaml.split('\n')) {
+    // match line that ends with " and replace it with ' unless there are ' or $ inside
+    // replace any \" with " (unescape double-quotes)
+    lines.push(line.replace(/^"([^"$]*)\"([^"$]*)"$|^"([^"$]*)"$|^"([^"$]*)\"$/g, "'$1$3$4'").replace(/"/g, "'"));
+  }
+  return lines.join('\n');
+  */
+
+  return doubleQuotedYaml;
 };
 
 const formatOutput = (
@@ -224,10 +257,20 @@ const output = async (
     filePostfix: process.env.FILE_POSTFIX,
     extract: castStringArr(process.env.EXTRACT),
     skipOpUse: castBool(process.env.SKIP_OP_USE),
+
+    skipOpMarker: process.env.SKIP_OP_MARKER ,
+    skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
   } as SecretProps;
 
+  if (secretProps.skipOpMarker) {
+    secretProps.skipOpUse = true;
+  }
   if (!secretProps.skipOpUse) {
     await getOpAuth();
+  } else {
+    if (secretProps.skipOpMarker && secretProps.skipOpMarkerWrite) {
+      fs.writeFileSync(secretProps.skipOpMarker, '', { encoding: 'utf8' });
+    }
   }
 
   let secretMap: EnvMap;

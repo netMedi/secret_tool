@@ -136,8 +136,20 @@ case $routine in
     if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
       echo '[DEBUG] Skipping 1password tests'
     fi
-
     export SKIP_OP_USE=1
+
+    FORMAT=json \
+    TEST_VAR_LOCAL_OVERRIDE1=overridden \
+    TEST_VAR_LOCAL_OVERRIDE2='!!' \
+      "$script_dir/$STOOL_EXECUTABLE" \
+        all_tests
+
+    FORMAT=yml \
+    TEST_VAR_LOCAL_OVERRIDE1=overridden \
+    TEST_VAR_LOCAL_OVERRIDE2='!!' \
+      "$script_dir/$STOOL_EXECUTABLE" \
+        all_tests
+
     export SKIP_HEADERS_USE=1
     FORMAT=envfile "$script_dir/$STOOL_EXECUTABLE" configmap
     FORMAT=json "$script_dir/$STOOL_EXECUTABLE" configmap
@@ -172,7 +184,7 @@ case $routine in
     fi
 
     # local env override 1
-    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE1=\"overridden\"" "${FILE_NAME_BASE}all_tests"); then
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE1='overridden'" "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Locally overridden value 1 was used'
     else
       echo '[ERROR] Locally overridden value 1 was ignored'
@@ -180,7 +192,7 @@ case $routine in
     fi
 
     # local env override 2
-    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE2=\"present\"" "${FILE_NAME_BASE}all_tests"); then
+    if (grep -q "^TEST_VAR_LOCAL_OVERRIDE2='present'" "${FILE_NAME_BASE}all_tests"); then
       echo '[ERROR] Locally overridden value 2 was ignored (discard)'
       errors=$((errors + 1))
     else
@@ -212,7 +224,7 @@ case $routine in
     fi
 
     # verify array (flat)
-    if (grep -q "^TEST_NEST__ARR__0__NESTED_OBJECT__KEY1=\"value1-1\"" "${FILE_NAME_BASE}all_tests"); then
+    if (grep -q "^TEST_NEST__ARR__0__NESTED_OBJECT__KEY1='value1-1'" "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Nested array (flat) generated correctly'
     else
       echo '[ERROR] Nested array (flat) generated with errors'
@@ -220,7 +232,7 @@ case $routine in
     fi
 
     # verify array (nested)
-    if (grep -q "^TEST_NEST_OBJ__VARIABLE__ARR_SIMPLE__0=\"value1\"" "${FILE_NAME_BASE}all_tests"); then
+    if (grep -q "^TEST_NEST_OBJ__VARIABLE__ARR_SIMPLE__0='value1'" "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Nested array (nested) generated correctly'
     else
       echo '[ERROR] Nested array (nested) generated with errors'
@@ -228,7 +240,7 @@ case $routine in
     fi
 
     # verify array (complex nested)
-    if (grep -q "^TEST_NEST_COMPLEX__ARR_COMPLEX__0__NESTED_OBJECT__KEY1=\"value1-1\"" "${FILE_NAME_BASE}all_tests"); then
+    if (grep -q "^TEST_NEST_COMPLEX__ARR_COMPLEX__0__NESTED_OBJECT__KEY1='value1-1'" "${FILE_NAME_BASE}all_tests"); then
       echo '[OK] Nested array (complex nested) generated correctly'
     else
       echo '[ERROR] Nested array (complex nested) generated with errors'
@@ -243,22 +255,24 @@ case $routine in
       errors=$((errors + 1))
     fi
 
-    # verify configmap generation from express command: YAML
+    ## --- New secret_tool always uses double quotes for YAML ---
+    ## TODO: change to single quotes if value contains no single quotes or $
+    ## verify configmap generation from express command: YAML
     # if cmp -s "$script_dir/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"; then
-    #   echo '[OK] YAML configmap generated correctly'
+    #   echo '[OK] Configmap (YAML) generated correctly'
     # else
-    #   echo '[ERROR] YAML configmap generated with errors'
+    #   echo '[ERROR] Configmap (YAML) generated with errors'
     #   errors=$((errors + 1))
     # fi
 
     # verify 1password integration is working
     if [ -f "$SKIP_OP_MARKER" ]; then
-      echo '[INFO] 1password reference is missing (skipped)'
+      echo '[INFO] 1password reference value is missing (skipped)'
     else
-      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}all_tests"); then
-        echo '[OK] GITHUB_TOKEN (1password) is present'
+      if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}pat"); then
+        echo '[OK] 1password reference value is present'
       else
-        echo '[ERROR] GITHUB_TOKEN (1password) is missing'
+        echo '[ERROR] 1password reference value is missing'
         echo '  Refer to installation instructions:'
         echo '    https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation'
         errors=$((errors + 1))
@@ -273,6 +287,8 @@ case $routine in
         echo '[OK] GITHUB_TOKEN (1password) is present'
       else
         echo '[ERROR] GITHUB_TOKEN (1password) is missing'
+        echo '  Refer to installation instructions:'
+        echo '    https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation'
         errors=$((errors + 1))
       fi
     fi

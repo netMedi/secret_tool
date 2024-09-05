@@ -71,7 +71,7 @@ const main = async () => {
       displayHelp();
       break;
     default:
-      displayVersion();
+      // displayVersion();
   }
 };
 

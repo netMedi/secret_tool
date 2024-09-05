@@ -163,7 +163,7 @@ const nestifyObj = (inputObj: object) => {
 
 const jsonFileContent = (inputObj: object) => {
   const nestedObj = nestifyObj(inputObj);
-  return JSON.stringify(nestedObj, null, 2);
+  return JSON.stringify(nestedObj, null, 2) + '\n';
 };
 const yamlFileContent = (inputObj: object) => {
   const nestedObj = nestifyObj(inputObj);
@@ -267,7 +267,7 @@ const output = async (
       process.exit(1);
     }
 
-    console.log(`[INFO] Extracting values (${profile})...`);
+    console.log(`\n[INFO] Extracting values (${profile})...`);
 
     const profileFromMap = secretMap['profiles'][profile];
     const profileFlatDefault = flattenObj(profileFromMap);

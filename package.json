@@ -4,7 +4,8 @@
   "scripts": {
     "install-check-deps": "sh ./script/install-check-deps.sh",
     "run-debug": "SECRET_MAP=./tests/secret_map.yml sh ./script/run-debug.sh",
-    "make-binary": "sh ./script/make-binary.sh"
+    "make-binary": "sh ./script/make-binary.sh",
+    "test-self": "sh ./script/test-self.sh"
   },
   "type": "module",
   "dependencies": {

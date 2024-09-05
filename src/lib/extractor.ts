@@ -71,24 +71,21 @@ const overrideFlatObj = (
 ) => {
   // for each key present in inputObj replace value with value from overrides if present
   for (const key of Object.keys(inputObj)) {
-    if (localOverrides.hasOwnProperty(key)) {
-      console.log('override', key, inputObj[key], localOverrides[key])
-      inputObj[key] = localOverrides[key];
-    }
+    if (localOverrides.hasOwnProperty(key)) inputObj[key] = localOverrides[key];
 
     switch (inputObj[key]) {
       case '':
         if (secretProps.excludeEmptyStrings) delete inputObj[key];
-        continue;
+        break;
       case '!![]': // this is explicit empty array
         inputObj[key] = [];
-        continue;
+        break;
       case '!!{}': // this is explicit empty object
         inputObj[key] = {};
-        continue;
+        break;
       case '!!': // this is explicit empty string
         inputObj[key] = '';
-        continue;
+        break;
       default:
         if (typeof inputObj[key] === 'string') {
           inputObj[key] = opValueOrLiteral(inputObj[key]);
@@ -176,6 +173,7 @@ const yamlFileContent = (inputObj: object) => {
 const formatOutput = (
   secretProfile: EnvMap,
   fileNameBase: string,
+  profile: string,
   format: string
 ) => {
   const jsObject = secretProfile;
@@ -187,7 +185,7 @@ const formatOutput = (
       res = jsonFileContent(jsObject);
       break;
     case 'y':
-      extension = '.yaml';
+      extension = '.yml';
       res = yamlFileContent(jsObject);
       break;
     default:
@@ -196,14 +194,14 @@ const formatOutput = (
 
   let path = fileNameBase;
   if (!!!path) {
-    path = './.env';
+    path = './.env.';
   }
   else if (path === '--') {
     console.log(output);
     return;
   }
 
-  path = resolve(path + extension);
+  path = resolve(path + profile + extension);
 
   console.log('[INFO] Output:', path);
   try {
@@ -275,9 +273,13 @@ const output = async (
     const profileFlatDefault = flattenObj(profileFromMap);
     const profileFlatOverridden = overrideFlatObj(profileFlatDefault, localOverrides, secretProps);
 
-    formatOutput(profileFlatOverridden, secretProps.fileNameBase, secretProps.format[0].toLowerCase());
+    formatOutput(
+      profileFlatOverridden,
+      secretProps.fileNameBase,
+      profile,
+      secretProps.format[0].toLowerCase()
+    );
   });
-
 };
 
 export default output;

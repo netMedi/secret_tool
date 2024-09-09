@@ -7,9 +7,10 @@ The tool to contextually handle environment variables and secrets in a secure wa
 
 Hard:
   - dash / ash / bash - command shell
-  - [yq](https://github.com/mikefarah/yq) - YAML secret map's handling
   - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
-  - node / bun
+  - bun or container tool* - building the binary
+
+  Container tools* supported: docker and podman.
 
 Soft:
   - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm global install !!!) - commands' wrapper
@@ -34,9 +35,12 @@ update_secret_tool: &update_secret_tool
   name: Update Secret Tool
   command: |
     tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-    # change tagged_version value to exact tag, if needed; example: v1.4.4
-    sudo wget -qO /usr/local/bin/secret_tool https://raw.githubusercontent.com/netMedi/secret_tool/$tagged_version/secret_tool.sh
-    sudo chmod +x /usr/local/bin/secret_tool
+    # change tagged_version value to exact tag, if needed; example: v1.6.4
+
+    git clone git@github.com:netMedi/secret_tool.git ./tmp/secret_tool
+    cd ./tmp/secret_tool
+    git checkout $tagged_version
+    ./secret_utils.sh install
     secret_tool --version
 ```
 
@@ -52,7 +56,7 @@ Whenever you need `secret_tool` installed in the context, include it as a step:
 
 There are a couple of automated ways to update secret_tool.
 
-1. The latest revision of main:
+1. The latest development version:
 
 ```sh
   # latest revision of main branch

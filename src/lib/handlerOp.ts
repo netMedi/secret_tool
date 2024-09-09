@@ -2,6 +2,7 @@ import { read, whoami, type ListAccount, validateCli } from "@1password/op-js";
 
 export const getOpAuth = async (verbose = false): Promise<ListAccount | null> => {
   const sessionData = async () => {
+    console.log('[INFO] Trying to log in to 1password...');
     const proc = Bun.spawn(['op', 'signin'], {
       stdin: "inherit", // Inherit stdin from the parent process
       stdout: "pipe",   // Capture the output

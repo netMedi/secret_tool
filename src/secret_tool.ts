@@ -36,11 +36,6 @@ const displayVersion = () => console.log(pkgInfo.version);
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);
 
-  if (cliArguments.includes('--help')) {
-    displayHelp();
-    process.exit(0);
-  }
-
   if (cliArguments.includes('--version')) {
     displayVersion();
     process.exit(0);
@@ -57,6 +52,11 @@ const main = async () => {
 
     // include test logic here...
 
+    process.exit(0);
+  }
+
+  if (cliArguments.includes('--help') || cliArguments.length === 0) {
+    displayHelp();
     process.exit(0);
   }
 

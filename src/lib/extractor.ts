@@ -262,7 +262,7 @@ const output = async (
     skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
   } as SecretProps;
 
-  if (secretProps.skipOpMarker) {
+  if (secretProps.skipOpMarker && fs.existsSync(secretProps.skipOpMarker)) {
     secretProps.skipOpUse = true;
   }
   if (!secretProps.skipOpUse) {

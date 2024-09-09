@@ -2,10 +2,10 @@
   "name": "secret_tool",
   "version": "2.0.0",
   "scripts": {
-    "install-check-deps": "sh ./script/install-check-deps.sh",
-    "run-debug": "SECRET_MAP=./tests/secret_map.yml sh ./script/run-debug.sh",
-    "make-binary": "sh ./script/make-binary.sh",
-    "test-self": "sh ./script/test-self.sh"
+    "install-check-deps": "sh ./utils/init.sh",
+    "run-debug": "SECRET_MAP=./tests/secret_map.yml sh ./utils/debug.sh",
+    "make-binary": "sh ./utils/build.sh",
+    "test-self": "sh ./utils/test.sh"
   },
   "type": "module",
   "dependencies": {

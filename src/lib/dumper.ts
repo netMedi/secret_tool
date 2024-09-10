@@ -3,25 +3,8 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import opValueOrLiteral, { getOpAuth } from './opSecretDataProvider';
 import produceBackup from './backuper';
-
-type SecretProps = {
-  secretMapPath: string;
-  format: string;
-
-  excludeEmptyStrings: boolean;
-  fileNameBase: string;
-  filePostfix: string;
-  extract: string[];
-  skipOpUse: boolean;
-
-  // flag-file to skip using 1password if present
-  skipOpMarker: string | undefined;
-  skipOpMarkerWrite: boolean;
-
-  // skip backup creation if true
-  liveDangerously: boolean;
-};
-type EnvMap = { [key: string]: any };
+import dumpFileHeaders from './headerDataProvider';
+import type { EnvMap, SecretProps } from './types';
 
 const castStringArr = (value: string | undefined): string[] => value ? value.split(' ') : [];
 const castBool = (value: string | undefined, defaultValue = false): boolean => value ? Boolean(JSON.parse(String(value))) : defaultValue;
@@ -76,14 +59,22 @@ const overrideFlatObj = (
   inputObj: EnvMap,
   localOverrides: EnvMap,
   secretProps: SecretProps
-) => {
+): [EnvMap, string[], string[]] => {
   // for each key present in inputObj replace value with value from overrides if present
+  const excludedBlankVariables: string[] = [];
+  const locallyOverriddenVariables: string[] = [];
   for (const key of Object.keys(inputObj)) {
-    if (localOverrides.hasOwnProperty(key)) inputObj[key] = localOverrides[key];
+    if (localOverrides.hasOwnProperty(key)) {
+      inputObj[key] = localOverrides[key];
+      locallyOverriddenVariables.push(key);
+    }
 
     switch (inputObj[key]) {
       case '':
-        if (secretProps.excludeEmptyStrings) delete inputObj[key];
+        if (secretProps.excludeEmptyStrings) {
+          delete inputObj[key];
+          excludedBlankVariables.push(key);
+        }
         break;
       case '!![]': // this is explicit empty array
         inputObj[key] = [];
@@ -100,7 +91,7 @@ const overrideFlatObj = (
         }
     }
   }
-  return inputObj;
+  return [inputObj, locallyOverriddenVariables, excludedBlankVariables];
 }
 
 // replaces surrounding double-quotes with single-quotes
@@ -115,27 +106,28 @@ const switchQuotes = (val: string) => {
 const envFileContent = (inputObj: object) => {
   const flatObj = flattenObj(inputObj);
 
-  let envfileString = '';
+  let envfileString: string[] = [];
   yaml.dump(flatObj, { forceQuotes: true, quotingType: '"' })
     .split('\n').forEach((line: string) => {
       const separator = ': ';
       const [key, ...rest] = line.split(separator);
       const value = rest.join(separator);
       if (key !== '' && key.indexOf('--') === -1) {
+        const keyName = key.toUpperCase().replaceAll('-', '_');
         switch (value) {
           case '[]':
-            envfileString = envfileString + `# ${key.toUpperCase().replaceAll('-', '_')} is an empty array\n`
+            envfileString.push(`# ${keyName} is an empty array`);
             break;
           case '{}':
-            envfileString = envfileString + `# ${key.toUpperCase().replaceAll('-', '_')} is an empty object\n`
+            envfileString.push(`# ${keyName} is an empty object`);
             break;
           default:
-            envfileString = envfileString + `${key.toUpperCase().replaceAll('-', '_')}=${switchQuotes(value)}\n`
+            envfileString.push(`${keyName}=${switchQuotes(value)}`);
         }
       }
     })
 
-  return envfileString;
+  return envfileString.sort().join('\n') + '\n';
 };
 
 const nestifyObj = (inputObj: object) => {
@@ -193,54 +185,68 @@ const jsonFileContent = (inputObj: object) => {
 };
 const yamlFileContent = (inputObj: object) => {
   const nestedObj = nestifyObj(inputObj);
-  const doubleQuotedYaml = yaml.dump(nestedObj, { quotingType: '"', indent: 2 });
-
-  /*
-  const lines = [];
-  for (const line of doubleQuotedYaml.split('\n')) {
-    // match line that ends with " and replace it with ' unless there are ' or $ inside
-    // replace any \" with " (unescape double-quotes)
-    lines.push(line.replace(/^"([^"$]*)\"([^"$]*)"$|^"([^"$]*)"$|^"([^"$]*)\"$/g, "'$1$3$4'").replace(/"/g, "'"));
-  }
-  return lines.join('\n');
-  */
-
-  return doubleQuotedYaml;
+  return yaml.dump(nestedObj, { quotingType: '"', indent: 2 });
 };
 
 const formatOutput = (
   secretProfile: EnvMap,
+  locallyOverriddenVariables: string[],
+  excludedBlankVariables: string[],
   fileNameBase: string,
   profile: string,
-  format: string,
-  skipBackups: boolean
+  secretProps: SecretProps,
 ) => {
-  const jsObject = secretProfile;
+  const {format, liveDangerously, secretMapPath, skipHeadersUse} = secretProps;
 
-  let [extension, res] = ['', ''];
-  switch(format){
+  const formatId = format[0].toLowerCase();
+  const skipBackups = liveDangerously;
+
+  let extension = '';
+  switch(formatId){
     case 'j':
       extension = '.json';
-      res = jsonFileContent(jsObject);
       break;
     case 'y':
       extension = '.yml';
-      res = yamlFileContent(jsObject);
       break;
-    default:
-      res = envFileContent(jsObject);
   }
 
   let path = fileNameBase;
   if (!!!path) {
     path = './.env.';
+  } else if (path !== '--') {
+    path = resolve(path + profile + extension);
   }
-  else if (path === '--') {
+
+  const headers = skipHeadersUse
+    ? undefined
+    : dumpFileHeaders(
+      path,
+      secretMapPath,
+      profile,
+      locallyOverriddenVariables,
+      excludedBlankVariables
+    );
+
+  let res = (() => {
+    switch (formatId) {
+      case 'j':
+        return jsonFileContent({ '//': headers, ...secretProfile });
+      case 'y':
+        return yamlFileContent({ '//': headers, ...secretProfile });
+      default:
+        const cleanHeaders: string[] = [];
+        yaml.dump(headers, { flowLevel: 1 })
+          .split('\n')
+          .forEach((line: string) => cleanHeaders.push(line.slice(1).replace("': ", ': ')));
+        return cleanHeaders.join('\n') + '\n' + envFileContent(secretProfile);
+    }
+  })();
+
+  if (path === '--') {
     console.log(output);
     return;
   }
-
-  path = resolve(path + profile + extension);
 
   console.log('[INFO] Output:', path);
   try {
@@ -263,6 +269,7 @@ const output = async (
     fileNameBase: process.env.FILE_NAME_BASE,
     filePostfix: process.env.FILE_POSTFIX,
     extract: castStringArr(process.env.EXTRACT),
+    skipHeadersUse: castBool(process.env.SKIP_HEADERS_USE),
     skipOpUse: castBool(process.env.SKIP_OP_USE),
 
     skipOpMarker: process.env.SKIP_OP_MARKER ,
@@ -323,14 +330,15 @@ const output = async (
 
     const profileFromMap = secretMap['profiles'][profile];
     const profileFlatDefault = flattenObj(profileFromMap);
-    const profileFlatOverridden = overrideFlatObj(profileFlatDefault, localOverrides, secretProps);
+    const [profileFlatOverridden, locallyOverriddenVariables, excludedBlankVariables] = overrideFlatObj(profileFlatDefault, localOverrides, secretProps);
 
     formatOutput(
       profileFlatOverridden,
+      locallyOverriddenVariables,
+      excludedBlankVariables,
       secretProps.fileNameBase,
       profile,
-      secretProps.format[0].toLowerCase(),
-      secretProps.liveDangerously
+      secretProps
     );
   });
 };

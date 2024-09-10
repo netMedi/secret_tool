@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 
 import pkgInfo from "../package.json" with { type: "json" };
-import gitDateTimeModified from "./lib/gitFileDataProvider";
-import output from "./lib/extractor";
+import output from "./lib/dumper";
 import { getOpAuth } from "./lib/opSecretDataProvider";
 
 const cmd_name = 'secret_tool';
@@ -31,8 +30,10 @@ const helpText = `
     SKIP_OP_USE=1 ${cmd_name} ci                 # do not use 1password
 `;
 
+export const version = pkgInfo.version;
+
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log(pkgInfo.version);
+const displayVersion = () => console.log(version);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);

@@ -1,18 +1,23 @@
 import fsDateTimeModified from "./fsFileDataProvider";
 
 const gitDateTimeModified = (filePath: string): string => {
-  const proc = Bun.spawnSync(
-    ['git', 'log', '-1', '--pretty="%cI"', '--', filePath],
+  const procGitDate = Bun.spawnSync(
+    ['git', 'log', '-1', '--pretty=%cI', '--', filePath],
     { stdout: 'pipe' }
   );
-  const output = proc.stdout.toString().trim();
+  const gitDate = procGitDate.stdout.toString().trim();
 
-  console.log(`'${output}'`)
-  if (output === '') {
+  if (gitDate === '') {
     // console.log('[DEBUG] Failed to get git date, falling back to fs');
     return fsDateTimeModified(filePath);
   }
-  return output;
+
+  const procGitCommit = Bun.spawnSync(
+    ['git', 'log', '-1', '--pretty=commit %H', '--', filePath],
+    { stdout: 'pipe' }
+  );
+  const gitCommit = procGitCommit.stdout.toString().trim();
+  return gitDate + ' ' + gitCommit;
 };
 
 export default gitDateTimeModified;

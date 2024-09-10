@@ -178,6 +178,11 @@ If you need to apply values other than the ones secret_map provides, you have a 
 
 [!] Options 2-4, however, allow you to make 1password references into use (ex: `MY_CUSTOM_VAR=':::op://Employee/MY_OVERRIDES/custom' secret_tool dev`) and that value will be dynamically evaluated at assignment. To discard some of the values set by secret_map, you can use literals for empty string, array and object: `!!` (discard whatever value present in secret_map), `!![]` (set value to empty array) and `!!{}` (set value to empty object).
 
+Example:
+```sh
+MY_VAR='!!' secret_tool dev # forcefully write empty value for MY_VAR
+```
+
 <!--
 
 ## Express set command

@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-const dateFromMTime = (mtime: Date, filenameFriendly = false): string => {
+export const dateFromMTime = (mtime: Date, filenameFriendly = false): string => {
   const YYYY = String(mtime.getFullYear());
   const MM = String(mtime.getMonth() + 1).padStart(2, '0');
   const DD = String(mtime.getDate()).padStart(2, '0');

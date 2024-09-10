@@ -1,7 +1,7 @@
 import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import opValueOrLiteral, { getOpAuth } from './opHandler';
+import opValueOrLiteral, { getOpAuth } from './opSecretDataProvider';
 import produceBackup from './backuper';
 
 type SecretProps = {

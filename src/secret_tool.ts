@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
 import pkgInfo from "../package.json" with { type: "json" };
+import gitDateTimeModified from "./lib/gitFileDataProvider";
 import output from "./lib/extractor";
-import { getOpAuth } from "./lib/opHandler";
+import { getOpAuth } from "./lib/opSecretDataProvider";
 
 const cmd_name = 'secret_tool';
 const helpText = `

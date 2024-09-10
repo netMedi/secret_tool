@@ -1,9 +1,9 @@
 import fs from 'fs';
-import fileModifiedDateFromFS from './metaDater';
+import fsDateTimeModified from './fsFileDataProvider';
 
 const produceBackup = (fileName: string, liveDangerously: boolean): number => {
   if (fs.existsSync(fileName) && !liveDangerously) {
-    const backupFileName = `${fileName}.${fileModifiedDateFromFS(fileName)}.bak`;
+    const backupFileName = `${fileName}.${fsDateTimeModified(fileName, true)}.bak`;
     fs.copyFileSync(fileName, backupFileName);
     console.log(`[INFO] Backup created: ${backupFileName}`);
     return 0;

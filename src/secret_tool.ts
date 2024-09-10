@@ -2,7 +2,7 @@
 
 import pkgInfo from "../package.json" with { type: "json" };
 import output from "./lib/extractor";
-import { getOpAuth } from "./lib/handlerOp";
+import { getOpAuth } from "./lib/opHandler";
 
 const cmd_name = 'secret_tool';
 const helpText = `

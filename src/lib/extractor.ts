@@ -1,7 +1,8 @@
 import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import opValueOrLiteral, { getOpAuth } from './handlerOp';
+import opValueOrLiteral, { getOpAuth } from './opHandler';
+import produceBackup from './backuper';
 
 type SecretProps = {
   secretMapPath: string;
@@ -13,8 +14,12 @@ type SecretProps = {
   extract: string[];
   skipOpUse: boolean;
 
+  // flag-file to skip using 1password if present
   skipOpMarker: string | undefined;
   skipOpMarkerWrite: boolean;
+
+  // skip backup creation if true
+  liveDangerously: boolean;
 };
 type EnvMap = { [key: string]: any };
 
@@ -207,7 +212,8 @@ const formatOutput = (
   secretProfile: EnvMap,
   fileNameBase: string,
   profile: string,
-  format: string
+  format: string,
+  skipBackups: boolean
 ) => {
   const jsObject = secretProfile;
 
@@ -238,6 +244,7 @@ const formatOutput = (
 
   console.log('[INFO] Output:', path);
   try {
+    produceBackup(path, skipBackups);
     fs.writeFileSync(path, res, { encoding: 'utf8' });
   } catch (e) {
     console.error(e);
@@ -260,6 +267,8 @@ const output = async (
 
     skipOpMarker: process.env.SKIP_OP_MARKER ,
     skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
+
+    liveDangerously: castBool(process.env.LIVE_DANGEROUSLY),
   } as SecretProps;
 
   if (secretProps.skipOpMarker && fs.existsSync(secretProps.skipOpMarker)) {
@@ -320,7 +329,8 @@ const output = async (
       profileFlatOverridden,
       secretProps.fileNameBase,
       profile,
-      secretProps.format[0].toLowerCase()
+      secretProps.format[0].toLowerCase(),
+      secretProps.liveDangerously
     );
   });
 };

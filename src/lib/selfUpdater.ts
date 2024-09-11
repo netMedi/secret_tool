@@ -4,7 +4,7 @@ import { SECRET_TOOL_DIR_SRC, SECRET_TOOL_GIT_REPO } from './defaults';
 
 const selfUpdate = async () => {
   if (existsSync(SECRET_TOOL_DIR_SRC)) {
-    await $`cd ${SECRET_TOOL_DIR_SRC} && bun ./secret_utils.sh update`;
+    await $`cd ${SECRET_TOOL_DIR_SRC} && sh ./secret_utils.sh update`;
     return;
   }
 

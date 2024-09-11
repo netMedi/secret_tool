@@ -5,7 +5,7 @@ import selfUpdate from "./selfUpdater";
 
 const selfTest = async (secretToolExe = 'secret_tool') => {
   if (existsSync(SECRET_TOOL_DIR_SRC)) {
-    await $`cd ${SECRET_TOOL_DIR_SRC} && SECRET_TOOL_EXE=${secretToolExe} bun ./secret_utils.sh test`;
+    await $`cd ${SECRET_TOOL_DIR_SRC} && SECRET_TOOL_EXE=${secretToolExe} sh ./secret_utils.sh test`;
     return;
   }
 

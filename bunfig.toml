@@ -1,0 +1,5 @@
+logLevel = "error"
+telemetry = false
+
+[run]
+silent = true

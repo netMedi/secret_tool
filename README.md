@@ -7,16 +7,17 @@ The tool to contextually handle environment variables and secrets in a secure wa
 
 Hard:
   - dash / ash / bash - command shell
-  - [yq](https://github.com/mikefarah/yq) - YAML secret map's handling
   - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
-  - node / bun
+  - bun or container tool* - building the binary
+
+  Container tools* supported: docker and podman.
 
 Soft:
   - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm global install !!!) - commands' wrapper
   - git - updates
 
 References:
-  - [Using 1password with netmedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
+  - [Using 1password with netMedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
 
 
 ## First time [install]
@@ -34,9 +35,12 @@ update_secret_tool: &update_secret_tool
   name: Update Secret Tool
   command: |
     tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-    # change tagged_version value to exact tag, if needed; example: v1.4.4
-    sudo wget -qO /usr/local/bin/secret_tool https://raw.githubusercontent.com/netMedi/secret_tool/$tagged_version/secret_tool.sh
-    sudo chmod +x /usr/local/bin/secret_tool
+    # change tagged_version value to exact tag, if needed; example: v1.6.4
+
+    git clone git@github.com:netMedi/secret_tool.git ./tmp/secret_tool
+    cd ./tmp/secret_tool
+    git checkout $tagged_version
+    ./secret_utils.sh install
     secret_tool --version
 ```
 
@@ -161,6 +165,7 @@ Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
 
 By default any existing output file with the same name will get renamed into file postfixed with `.YYYY-MM-DD_hh-mm-ss.bak`. This sort of backup can be skipped by setting `LIVE_DANGEROUSLY=1`.
 
+
 ## Local overrides
 
 If you need to apply values other than the ones secret_map provides, you have a few options:
@@ -173,6 +178,11 @@ If you need to apply values other than the ones secret_map provides, you have a 
 [!] Option 1 allows you to set the value as clear text only.
 
 [!] Options 2-4, however, allow you to make 1password references into use (ex: `MY_CUSTOM_VAR=':::op://Employee/MY_OVERRIDES/custom' secret_tool dev`) and that value will be dynamically evaluated at assignment. To discard some of the values set by secret_map, you can use literals for empty string, array and object: `!!` (discard whatever value present in secret_map), `!![]` (set value to empty array) and `!!{}` (set value to empty object).
+
+Example:
+```sh
+MY_VAR='!!' secret_tool dev # forcefully write empty value for MY_VAR
+```
 
 <!--
 
@@ -222,7 +232,6 @@ The reason express commands exist is to allow batch extraction in complex scenar
 
 Profiles starting with double-dash are considered internal templates and therefore are not displayed for `secret_tool --profiles`.
 
-
 ### PROFILE inheritance
 
 YAML has an inheritance feature built in. You do not have to redeclare the repeating values again if they are already defined in existing profile. For example, if you need to create a close derivative of "dev" profile adding a few extra variables on top, you may inherit existing ones using anchor:
@@ -244,7 +253,11 @@ dev-extended:
 Notice how profile to derive from is marked with `&dev` and the new profile has `<<: *dev` essentially including existing profile as a template to modify and extend.
 
 
-
 ## Modifying secret_tool scripts
 
-After making changes verify all the scripts with shellcheck: `./.posix_verify.sh`
+[!] Recommended VS Code extensions: `oven.bun-vscode`.
+
+You can run secret_tool without compiling it. Use `bun src_run` or `./secret_utils.sh src_run`.
+To start utils you can have two options: `bun utils` and `./secret_utils.sh`.
+
+After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter.

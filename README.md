@@ -165,6 +165,7 @@ Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
 
 By default any existing output file with the same name will get renamed into file postfixed with `.YYYY-MM-DD_hh-mm-ss.bak`. This sort of backup can be skipped by setting `LIVE_DANGEROUSLY=1`.
 
+
 ## Local overrides
 
 If you need to apply values other than the ones secret_map provides, you have a few options:
@@ -231,7 +232,6 @@ The reason express commands exist is to allow batch extraction in complex scenar
 
 Profiles starting with double-dash are considered internal templates and therefore are not displayed for `secret_tool --profiles`.
 
-
 ### PROFILE inheritance
 
 YAML has an inheritance feature built in. You do not have to redeclare the repeating values again if they are already defined in existing profile. For example, if you need to create a close derivative of "dev" profile adding a few extra variables on top, you may inherit existing ones using anchor:
@@ -255,6 +255,9 @@ Notice how profile to derive from is marked with `&dev` and the new profile has 
 
 ## Modifying secret_tool scripts
 
-Recommended VS Code extensions: `oven.bun-vscode`.
+[!] Recommended VS Code extensions: `oven.bun-vscode`.
 
-After making changes verify all the scripts with shellcheck: `./.posix_verify.sh`
+You can run secret_tool without compiling it. Use `bun secret-debug`.
+To start utils you can have two options: `bun secret_utils` and `./secret_utils.sh`.
+
+After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter.

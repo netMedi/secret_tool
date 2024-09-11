@@ -2,6 +2,7 @@
 
 import pkgInfo from "../package.json" with { type: "json" };
 import output from "./lib/dumper";
+import selfInstall from "./lib/selfInstaller";
 import selfTest from "./lib/selfTester";
 import selfUpdate from "./lib/selfUpdater";
 
@@ -46,6 +47,11 @@ const main = async () => {
 
   if (cliArguments.includes('--update')) {
     await selfUpdate();
+    process.exit(0);
+  }
+
+  if (cliArguments.includes('--install')) {
+    await selfInstall();
     process.exit(0);
   }
 

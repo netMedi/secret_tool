@@ -2,10 +2,8 @@
   "name": "secret_tool",
   "version": "2.0.0",
   "scripts": {
-    "install-check-deps": "sh ./utils/init.sh",
-    "run-debug": "SECRET_MAP=./tests/secret_map.yml sh ./utils/debug.sh",
-    "make-binary": "sh ./utils/build.sh",
-    "test-self": "sh ./utils/test.sh"
+    "secret_debug": "./src/secret_tool.ts",
+    "secret_utils": "EXEC_CMD='bun secret_utils' ./secret_utils.sh"
   },
   "type": "module",
   "dependencies": {

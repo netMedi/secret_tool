@@ -2,7 +2,8 @@
 
 import pkgInfo from "../package.json" with { type: "json" };
 import output from "./lib/dumper";
-import { getOpAuth } from "./lib/opSecretDataProvider";
+import selfTest from "./lib/selfTester";
+import selfUpdate from "./lib/selfUpdater";
 
 const cmd_name = 'secret_tool';
 const helpText = `
@@ -43,17 +44,13 @@ const main = async () => {
     process.exit(0);
   }
 
-  // TODO
   if (cliArguments.includes('--update')) {
+    await selfUpdate();
     process.exit(0);
   }
 
-  // TODO
   if (cliArguments.includes('--test')) {
-    await getOpAuth(true);
-
-    // include test logic here...
-
+    await selfTest(Bun.argv[1]);
     process.exit(0);
   }
 
@@ -61,9 +58,6 @@ const main = async () => {
     displayHelp();
     process.exit(0);
   }
-
-  // console.dir(process.env);
-  // process.exit(0);
 
   const exitCode: number | undefined = await output(process.env, cliArguments);
   switch (exitCode) {

@@ -36,7 +36,7 @@ const helpText = `
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log('\n ', version, secret_tool_path);
+const displayVersion = () => console.log(version, secret_tool_path);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);
@@ -63,6 +63,7 @@ const main = async () => {
 
   if (cliArguments.includes('--help') || cliArguments.length === 0) {
     displayHelp();
+    console.log();
     displayVersion();
     process.exit(0);
   }

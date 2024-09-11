@@ -1,4 +1,6 @@
 import { read, whoami, type ListAccount, validateCli } from "@1password/op-js";
+import { version } from "../secret_tool";
+import verGreaterOrEqual from "./verGte";
 
 export const getOpAuth = async (verbose = false): Promise<ListAccount | null> => {
   const sessionData = async () => {
@@ -39,7 +41,34 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     const approvedVersion = read.parse('op://Employee/SECRET_TOOL/version');
 
     // TODO: compare current version with approved version and throw exception (?) if necessary
-    if (verbose) console.log('[INFO] Approved secret_tool version:', approvedVersion);
+    /*if (verbose) */console.log('[INFO] Approved secret_tool version:', approvedVersion);
+    // console.log('[INFO] Installed secret_tool version:', version);
+    if (!verGreaterOrEqual(approvedVersion, version)) {
+      console.log('[WARN] You need to approve version', version, 'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)');
+      let xyn: string | null = '';
+      while (xyn === '') {
+        console.log();
+        console.log('Try extracting OP secrets regardless?');
+        console.log('  X (or Enter) - just exit');
+        console.log('  y = yes, ignore version mismatch');
+        console.log('  n = no, continue without 1password');
+
+        xyn = prompt('')?.toString()[0].toLowerCase() || '';
+        switch (xyn) {
+          case 'y':
+            console.log('[INFO] trying to extract OP secrets...');
+            break;
+          case 'n':
+            return null;
+          default:
+            if (xyn === null || 'x'.indexOf(xyn) === 0) process.exit(0);
+            else {
+              console.log('[ Please answer "y", "n", or "x" (single letter, no quotes) ]');
+              xyn = '';
+            }
+        }
+      }
+    }
 
     return opProps;
   }

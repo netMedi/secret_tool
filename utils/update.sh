@@ -1,6 +1,6 @@
 #!/bin/sh
 # perform secret_tool's update
-SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 
 git -C "$SECRET_TOOL_DIR_SRC" stash > /dev/null # this may produce stashes, maybe reset instead?

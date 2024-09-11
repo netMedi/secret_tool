@@ -1,6 +1,6 @@
 #!/bin/sh
 # verify secret_tool's functionality
-SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 SECRET_TOOL_EXE=${SECRET_TOOL_EXE:-$SECRET_TOOL_DIR_SRC/src/secret_tool.ts}
 DEBUG=${DEBUG:-0}
 errors=0

@@ -1,6 +1,6 @@
 #!/bin/sh
 # run secret_tool from source without compiling it
-SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 CONTAINER_TOOL=${CONTAINER_TOOL:-podman}
 CONTAINER_FILE_PERMISSIONS=${CONTAINER_FILE_PERMISSIONS:-z}
 src_in=$SECRET_TOOL_DIR_SRC/src/secret_tool.ts

@@ -1,6 +1,6 @@
 #!/bin/sh
 # create secret_tool's symlink
-SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 SKIP_OP_USE=${SKIP_OP_USE:-0}
 

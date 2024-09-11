@@ -83,6 +83,7 @@ get_file_modified_date() {
 
 show_help() {
   echo "$help_text" | head -n -1 | tail -n +2
+  printf "%s\n  $(get_own_version)\n"
   exit 0
 }
 
@@ -121,12 +122,7 @@ validate_approved_version() {
     return 0
   else
     [ -n "$APPROVED_TOOL_VERSION" ] && echo "[INFO] Approved secret tool version: $APPROVED_TOOL_VERSION"
-    echo "[ERROR] You need to approve version '$TOOL_VERSION' of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)"
-
-    [ -n "$SKIP_OP_MARKER_WRITE" ] && {
-      touch "$SKIP_OP_MARKER"
-      [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER written: $SKIP_OP_MARKER"
-    }
+    echo "[WARN] You need to approve version '$TOOL_VERSION' of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)"
 
     # continue without 1password or exit
     if [ "$xyn" = "y" ]; then
@@ -147,6 +143,10 @@ validate_approved_version() {
             ;;
           [Nn]* )
             SKIP_OP_USE=1
+            [ -n "$SKIP_OP_MARKER_WRITE" ] && {
+              touch "$SKIP_OP_MARKER"
+              [ "$DEBUG" = "1" ] && echo "[DEBUG] SKIP_OP_MARKER written: $SKIP_OP_MARKER"
+            }
             return 0
             ;;
           [Xx]* )
@@ -217,7 +217,7 @@ if [ "$1" = "--test" ]; then
     [ "$VERBOSITY" -ge "1" ] && echo '[WARN] Standalone installation (secret_utils.sh is not available). Skipping tests.'
     exit 1
   fi
-  "$script_dir/secret_utils.sh" test || exit 1
+  SECRET_TOOL_EXE="$script_dir/secret_tool.sh" "$script_dir/secret_utils.sh" test || exit 1
   exit 0
 fi
 

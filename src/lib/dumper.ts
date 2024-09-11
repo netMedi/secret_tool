@@ -70,11 +70,15 @@ const overrideFlatObj = (
       locallyOverriddenVariables.push(key);
     }
 
+    if (typeof inputObj[key] === 'string') {
+      inputObj[key] = opValueOrLiteral(inputObj[key], secretProps.skipOpUse);
+    }
+
     switch (inputObj[key]) {
       case '':
         if (secretProps.excludeEmptyStrings) {
           delete inputObj[key];
-          excludedBlankVariables.push(key);
+          excludedBlankVariables.push(key.toUpperCase());
         }
         break;
       case '!![]': // this is explicit empty array
@@ -86,10 +90,6 @@ const overrideFlatObj = (
       case '!!': // this is explicit empty string
         inputObj[key] = '';
         break;
-      default:
-        if (typeof inputObj[key] === 'string') {
-          inputObj[key] = opValueOrLiteral(inputObj[key], secretProps.skipOpUse);
-        }
     }
   }
   return [inputObj, locallyOverriddenVariables, excludedBlankVariables];
@@ -215,7 +215,8 @@ const formatOutput = (
   let path = fileNameBase;
   if (!!!path) {
     path = './.env.';
-  } else if (path !== '--') {
+  }
+  if (path !== '--') {
     path = resolve(path + profile + extension);
   }
 
@@ -314,7 +315,10 @@ const output = async (
     secretProps.skipOpUse = true;
   }
   if (!secretProps.skipOpUse) {
-    await getOpAuth();
+    const opProps = await getOpAuth();
+    if (opProps === null) {
+      secretProps.skipOpUse = true;
+    }
   } else {
     if (secretProps.skipOpMarker && secretProps.skipOpMarkerWrite) {
       fs.writeFileSync(secretProps.skipOpMarker, '', { encoding: 'utf8' });

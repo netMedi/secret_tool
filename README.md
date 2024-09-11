@@ -257,7 +257,7 @@ Notice how profile to derive from is marked with `&dev` and the new profile has 
 
 [!] Recommended VS Code extensions: `oven.bun-vscode`.
 
-You can run secret_tool without compiling it. Use `bun secret-debug`.
+You can run secret_tool without compiling it. Use `bun secret_tool`.
 To start utils you can have two options: `bun secret_utils` and `./secret_utils.sh`.
 
 After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter.

@@ -6,36 +6,36 @@ import selfInstall from "./lib/selfInstaller";
 import selfTest from "./lib/selfTester";
 import selfUpdate from "./lib/selfUpdater";
 
-const cmd_name = 'secret_tool';
+const SECRET_TOOL = process.env.SECRET_TOOL || Bun.argv[1].split('/').pop();
 const helpText = `
-  Script: ${cmd_name}
+  Script: ${SECRET_TOOL}
   Purpose: Produce file(s) with environment variables and secrets from 1password using secret map
 
-  Usage: [OVERRIDES] ${cmd_name} [PROFILE_NAME(S)]
+  Usage: [OVERRIDES] ${SECRET_TOOL} [PROFILE_NAME(S)]
   (if any dashed arguments are present, all other arguments are ignored)
-    ${cmd_name} --version                        # print version info and exit
-    ${cmd_name} --help                           # print help and exit
-    ${cmd_name} --update                         # perform self-update and exit (only for full git install)
-    ${cmd_name} --test                           # perform self-test and exit (only for full git install)
-    ${cmd_name} --profiles                       # list all available profiles and exit
-    ${cmd_name} --all                            # dump secrets for all profiles
+    ${SECRET_TOOL} --version                        # print version info and exit
+    ${SECRET_TOOL} --help                           # print help and exit
+    ${SECRET_TOOL} --update                         # perform self-update and exit
+    ${SECRET_TOOL} --test                           # perform self-test and exit
+    ${SECRET_TOOL} --profiles                       # list all available profiles and exit
+    ${SECRET_TOOL} --all                            # dump secrets for all profiles
 
   Examples:
-    ${cmd_name} staging                          # dump secrets for this profile
-    ${cmd_name} dev test                         # dump secrets for these two profiles
-    VAR123='' ${cmd_name}                        # ignore local override of this variable
-    SECRET_MAP='~/alt-map.yml' ${cmd_name} test  # use this map file
-    EXCLUDE_EMPTY_STRINGS=1 ${cmd_name} dev      # dump all, exclude blank values
-    FILE_NAME_BASE='/tmp/.env.' ${cmd_name} dev  # start file name with this (create file /tmp/.env.dev)
-    FILE_POSTFIX='.sh' ${cmd_name} prod          # append this to file name end (.env.prod.sh)
-    EXTRACT='ci test' ${cmd_name}                # set target profiles via variable (same as \`${cmd_name} ci test\`)
-    SKIP_OP_USE=1 ${cmd_name} ci                 # do not use 1password
+    ${SECRET_TOOL} staging                          # dump secrets for this profile
+    ${SECRET_TOOL} dev test                         # dump secrets for these two profiles
+    VAR123='' ${SECRET_TOOL}                        # ignore local override of this variable
+    SECRET_MAP='~/alt-map.yml' ${SECRET_TOOL} test  # use this map file
+    EXCLUDE_EMPTY_STRINGS=1 ${SECRET_TOOL} dev      # dump all, exclude blank values
+    FILE_NAME_BASE='/tmp/.env.' ${SECRET_TOOL} dev  # start file name with this (create file /tmp/.env.dev)
+    FILE_POSTFIX='.sh' ${SECRET_TOOL} prod          # append this to file name end (.env.prod.sh)
+    EXTRACT='ci test' ${SECRET_TOOL}                # set target profiles via variable (same as \`${SECRET_TOOL} ci test\`)
+    SKIP_OP_USE=1 ${SECRET_TOOL} ci                 # do not use 1password
 `;
 
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log(version, Bun.argv[1]);
+const displayVersion = () => console.log('\n ', version, Bun.argv[1]);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);
@@ -62,6 +62,7 @@ const main = async () => {
 
   if (cliArguments.includes('--help') || cliArguments.length === 0) {
     displayHelp();
+    displayVersion();
     process.exit(0);
   }
 

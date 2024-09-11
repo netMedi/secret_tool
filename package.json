@@ -2,8 +2,8 @@
   "name": "secret_tool",
   "version": "2.0.0",
   "scripts": {
-    "secret_debug": "./src/secret_tool.ts",
-    "secret_utils": "EXEC_CMD='bun secret_utils' ./secret_utils.sh"
+    "secret_tool": "SECRET_TOOL='bun secret_tool' ./src/secret_tool.ts",
+    "secret_utils": "SECRET_UTILS='bun secret_utils' ./secret_utils.sh"
   },
   "type": "module",
   "dependencies": {

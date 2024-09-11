@@ -29,7 +29,7 @@ fi
 
 actual_path=$(readlink -f "$0")
 script_dir=$(dirname "$actual_path")
-EXEC_CMD=${EXEC_CMD:-./secret_utils.sh}
+SECRET_UTILS=${SECRET_UTILS:-$(basename "$0")}
 
 whitelist="help"
 for fn in "$script_dir"/utils/*.sh; do
@@ -51,10 +51,10 @@ case $routine in
     for fn in "$script_dir"/utils/*.sh; do
       name=$(basename "$fn")
       name="${name%.*}"
-      commands="$commands    ${EXEC_CMD} $name $(head -n 2 $fn | tail -n 1)\n"
+      commands="$commands    ${SECRET_UTILS} $name $(head -n 2 $fn | tail -n 1)\n"
     done
-    commands="$commands    ${EXEC_CMD} help # show this help text"
-    printf "  Script: ${EXEC_CMD}\n  Purpose: Configuration utils for secret_tool\n\n  Usage: [OVERRIDES] ${EXEC_CMD} [ROUTINE_NAME]\n"
+    commands="$commands    ${SECRET_UTILS} help # show this help text"
+    printf "  Script: ${SECRET_UTILS}\n  Purpose: Configuration utils for secret_tool\n\n  Usage: [OVERRIDES] ${SECRET_UTILS} [ROUTINE_NAME]\n"
     echo "$commands" | column -t -s '#'
     ;;
   *)

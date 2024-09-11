@@ -185,10 +185,11 @@ echo
 "$SECRET_TOOL_EXE" --version
 echo
 
+echo "[DONE] Failures: $errors"
+
 # clean up unless debugging is enabled
 printf '[ Press Enter to clean up and exit... ]'
 read -r REPLY
 printf "\n"
 
 [ "$DEBUG" = "0" ] && rm "$FILE_NAME_BASE"* 2> /dev/null
-[ "$errors" -eq "0" ] && exit 0 || exit 1

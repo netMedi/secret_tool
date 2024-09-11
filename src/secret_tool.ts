@@ -34,7 +34,7 @@ const helpText = `
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log(version);
+const displayVersion = () => console.log(version, Bun.argv[1]);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);

@@ -278,17 +278,6 @@ const output = async (
     liveDangerously: castBool(process.env.LIVE_DANGEROUSLY),
   } as SecretProps;
 
-  if (secretProps.skipOpMarker && fs.existsSync(secretProps.skipOpMarker)) {
-    secretProps.skipOpUse = true;
-  }
-  if (!secretProps.skipOpUse) {
-    await getOpAuth();
-  } else {
-    if (secretProps.skipOpMarker && secretProps.skipOpMarkerWrite) {
-      fs.writeFileSync(secretProps.skipOpMarker, '', { encoding: 'utf8' });
-    }
-  }
-
   let secretMap: EnvMap;
   // Get document, or throw exception on error
   try {
@@ -318,6 +307,17 @@ const output = async (
 
   if (profilesReq.length === 0) {
     return 1;
+  }
+
+  if (secretProps.skipOpMarker && fs.existsSync(secretProps.skipOpMarker)) {
+    secretProps.skipOpUse = true;
+  }
+  if (!secretProps.skipOpUse) {
+    await getOpAuth();
+  } else {
+    if (secretProps.skipOpMarker && secretProps.skipOpMarkerWrite) {
+      fs.writeFileSync(secretProps.skipOpMarker, '', { encoding: 'utf8' });
+    }
   }
 
   profilesReq.forEach(profile => {

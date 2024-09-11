@@ -1,22 +1,22 @@
 #!/bin/sh
 # verify secret_tool's functionality
-STOOL_ROOT_DIR=${STOOL_ROOT_DIR:-.}
-STOOL_EXECUTABLE=${STOOL_EXECUTABLE:-$STOOL_ROOT_DIR/src/secret_tool.ts}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_EXE=${SECRET_TOOL_EXE:-$SECRET_TOOL_DIR_SRC/src/secret_tool.ts}
 DEBUG=${DEBUG:-0}
 errors=0
 
-echo "Running secret_tool's self-tests [$STOOL_EXECUTABLE]..."
+echo "Running secret_tool's self-tests [$SECRET_TOOL_EXE]..."
 echo
 
-export FILE_NAME_BASE="$STOOL_ROOT_DIR/tests/.env."
-export SECRET_MAP="${SECRET_MAP:-$STOOL_ROOT_DIR/tests/secret_map.yml}"
-export SKIP_OP_MARKER="$STOOL_ROOT_DIR/tests/.env.SKIP_OP_MARKER"
+export FILE_NAME_BASE="$SECRET_TOOL_DIR_SRC/tests/.env."
+export SECRET_MAP="${SECRET_MAP:-$SECRET_TOOL_DIR_SRC/tests/secret_map.yml}"
+export SKIP_OP_MARKER="$SECRET_TOOL_DIR_SRC/tests/.env.SKIP_OP_MARKER"
 rm "$SKIP_OP_MARKER" 2> /dev/null
 
 SKIP_OP_MARKER_WRITE=1 \
 TEST_VAR_LOCAL_OVERRIDE1=overridden \
 TEST_VAR_LOCAL_OVERRIDE2='!!' \
-  "$STOOL_EXECUTABLE" \
+  "$SECRET_TOOL_EXE" \
     all_tests pat
 
 if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
@@ -27,19 +27,19 @@ export SKIP_OP_USE=1 # this is to skip OP use in following tests only
 FORMAT=json \
 TEST_VAR_LOCAL_OVERRIDE1=overridden \
 TEST_VAR_LOCAL_OVERRIDE2='!!' \
-  "$STOOL_EXECUTABLE" \
+  "$SECRET_TOOL_EXE" \
     all_tests
 
 FORMAT=yml \
 TEST_VAR_LOCAL_OVERRIDE1=overridden \
 TEST_VAR_LOCAL_OVERRIDE2='!!' \
-  "$STOOL_EXECUTABLE" \
+  "$SECRET_TOOL_EXE" \
     all_tests
 
 export SKIP_HEADERS_USE=1
-FORMAT=envfile "$STOOL_EXECUTABLE" configmap
-FORMAT=json "$STOOL_EXECUTABLE" configmap
-FORMAT=yml "$STOOL_EXECUTABLE" configmap
+FORMAT=envfile "$SECRET_TOOL_EXE" configmap
+FORMAT=json "$SECRET_TOOL_EXE" configmap
+FORMAT=yml "$SECRET_TOOL_EXE" configmap
 
 # --- beginning of tests ---
 
@@ -134,7 +134,7 @@ else
 fi
 
 # verify configmap generation from express command: JSON
-if cmp -s "$STOOL_ROOT_DIR/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"; then
+if cmp -s "$SECRET_TOOL_DIR_SRC/tests/validator.env.configmap.json" "${FILE_NAME_BASE}configmap.json"; then
   echo '[OK] Configmap (JSON) generated correctly'
 else
   echo '[ERROR] Configmap (JSON) generated with errors'
@@ -144,7 +144,7 @@ fi
 ## --- New secret_tool always uses double quotes for YAML ---
 ## TODO: change to single quotes if value contains no single quotes or $
 ## verify configmap generation from express command: YAML
-# if cmp -s "$STOOL_ROOT_DIR/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"; then
+# if cmp -s "$SECRET_TOOL_DIR_SRC/tests/validator.env.configmap.yml" "${FILE_NAME_BASE}configmap.yml"; then
 #   echo '[OK] Configmap (YAML) generated correctly'
 # else
 #   echo '[ERROR] Configmap (YAML) generated with errors'
@@ -182,7 +182,7 @@ fi
 # --- end of tests ---
 
 echo
-"$STOOL_EXECUTABLE" --version
+"$SECRET_TOOL_EXE" --version
 echo
 
 # clean up unless debugging is enabled

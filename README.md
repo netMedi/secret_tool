@@ -17,7 +17,7 @@ Soft:
   - git - updates
 
 References:
-  - [Using 1password with netmedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
+  - [Using 1password with netMedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
 
 
 ## First time [install]
@@ -56,7 +56,7 @@ Whenever you need `secret_tool` installed in the context, include it as a step:
 
 There are a couple of automated ways to update secret_tool.
 
-1. The latest development version:
+1. The latest revision of main:
 
 ```sh
   # latest revision of main branch

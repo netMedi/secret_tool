@@ -1,7 +1,7 @@
 #!/bin/sh
 # create secret_tool's symlink
-STOOL_ROOT_DIR=${STOOL_ROOT_DIR:-.}
-SYMLINK_DIR=${SYMLINK_DIR:-/usr/local/bin}
+SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
+SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 
 echo '[INFO] Trying to log in to 1password...'
 op whoami > /dev/null 2>&1 \
@@ -36,7 +36,7 @@ else
 fi
 
 ### make sure the binary has been built
-$STOOL_ROOT_DIR/utils/build.sh || exit 1
+$SECRET_TOOL_DIR_SRC/utils/build.sh || exit 1
 
 ### create symlink if missing
 if command -v secret_tool > /dev/null 2>&1 && [ "$(readlink $(command -v secret_tool))" = "$(realpath "$script_dir/dist/secret_tool")" ]; then
@@ -47,7 +47,7 @@ if command -v secret_tool > /dev/null 2>&1 && [ "$(readlink $(command -v secret_
 fi
 
 echo 'Creating global secret_tool symlink'
-sudo sh -c "mkdir -p '$SYMLINK_DIR'; ln -sf '$script_dir/$STOOL_EXECUTABLE' '$SYMLINK_DIR/secret_tool' && chmod +x '$SYMLINK_DIR/secret_tool'" \
+sudo sh -c "mkdir -p '$SECRET_TOOL_DIR_INSTALL'; cp '$script_dir/$SECRET_TOOL_EXE' '$SECRET_TOOL_DIR_INSTALL/secret_tool' && chmod +x '$SECRET_TOOL_DIR_INSTALL/secret_tool'" \
   && echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available' \
   || {
     echo '[ERROR] Failed to install secret tool with sudo.'

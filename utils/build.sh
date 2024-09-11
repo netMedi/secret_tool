@@ -9,7 +9,7 @@ bin_out=$SECRET_TOOL_DIR_SRC/dist/secret_tool
 NODE_ENV=production
 
 command_line="bun install &> /dev/null && \
-  bun build '$src_in' --compile --minify --sourcemap --outfile '$bin_out.tmp'"
+  bun build '$src_in' --compile --minify --sourcemap --outfile '$bin_out'"
 
 if command -v bun > /dev/null 2>&1; then
   sh -c "$command_line" \
@@ -20,8 +20,7 @@ else
       || exit 1
 fi
 
-if [ -f "$bin_out.tmp" ]; then
-  mv -f "$bin_out.tmp" "$bin_out"
+if [ -f "$bin_out" ]; then
   chmod +wx "$bin_out"
 else
   echo '[ERROR] Failed to make binary'

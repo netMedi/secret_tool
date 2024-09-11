@@ -12,6 +12,9 @@
 [ -z "$1" ] && exit 1
 [ -z "$2" ] && exit 1
 
+PROMPT_OK=${PROMPT_OK:-Your version is OK}
+PROMPT_FAIL=${PROMPT_OK:-Your version is too old}
+
 if [ "$2" == "latest" ]; then
   NEWER_VERSION="$2"
 else
@@ -19,9 +22,9 @@ else
 fi
 
 if [[ "$NEWER_VERSION" == "$2" ]]; then
-  echo "Your version is OK (present: $2, required: $1)"
+  echo "${PROMPT_OK} (present: $2, required: $1)"
   exit 0
 else
-  echo "Your version is too old (present: $2, required: $1)"
+  echo "${PROMPT_FAIL} (present: $2, required: $1)"
   exit 1
 fi

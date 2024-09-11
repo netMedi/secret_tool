@@ -6,7 +6,8 @@ import selfInstall from "./lib/selfInstaller";
 import selfTest from "./lib/selfTester";
 import selfUpdate from "./lib/selfUpdater";
 
-const SECRET_TOOL = process.env.SECRET_TOOL || Bun.argv[1].split('/').pop();
+const secret_tool_path = process.execPath.split('/').pop() === "bun" ? Bun.argv[1] : process.execPath;
+const SECRET_TOOL = process.env.SECRET_TOOL || secret_tool_path.split('/').pop();
 const helpText = `
   Script: ${SECRET_TOOL}
   Purpose: Produce file(s) with environment variables and secrets from 1password using secret map
@@ -35,7 +36,7 @@ const helpText = `
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log('\n ', version, Bun.argv[1]);
+const displayVersion = () => console.log('\n ', version, secret_tool_path);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);

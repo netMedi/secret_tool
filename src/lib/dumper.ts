@@ -5,6 +5,7 @@ import opValueOrLiteral, { getOpAuth } from './opSecretDataProvider';
 import produceBackup from './backuper';
 import dumpFileHeaders from './headerDataProvider';
 import type { EnvMap, SecretProps } from './types';
+import { FORMAT, SECRET_MAP } from './defaults';
 
 const castStringArr = (value: string | undefined): string[] => value ? value.split(' ') : [];
 const castBool = (value: string | undefined, defaultValue = false): boolean => value ? Boolean(JSON.parse(String(value))) : defaultValue;
@@ -262,8 +263,8 @@ const output = async (
   cliArguments: string[]
 ) => {
   const secretProps = {
-    secretMapPath: process.env.SECRET_MAP || './secret_map.yml',
-    format: process.env.FORMAT || 'e',
+    secretMapPath: process.env.SECRET_MAP || SECRET_MAP,
+    format: process.env.FORMAT || FORMAT,
 
     excludeEmptyStrings: castBool(process.env.EXCLUDE_EMPTY_STRINGS, true),
     fileNameBase: process.env.FILE_NAME_BASE,

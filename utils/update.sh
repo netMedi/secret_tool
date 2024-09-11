@@ -3,18 +3,18 @@
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-.}
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 
-git -C "$script_dir" stash > /dev/null # this may produce stashes, maybe reset instead?
+git -C "$SECRET_TOOL_DIR_SRC" stash > /dev/null # this may produce stashes, maybe reset instead?
 
 if [ -n "$VERSION" ]; then
-  git -C "$script_dir" fetch --tags > /dev/null
+  git -C "$SECRET_TOOL_DIR_SRC" fetch --tags > /dev/null
   if [ "$VERSION" = "latest" ] || [ "$VERSION" = "main" ] || [ "$VERSION" = "stable" ]; then
     VERSION=$(git ls-remote --tags origin | cut --delimiter='/' --fields=3 | sort -r | grep "^v" | head -n 1)
   fi
-  git -C "$script_dir" checkout "$VERSION" > /dev/null
+  git -C "$SECRET_TOOL_DIR_SRC" checkout "$VERSION" > /dev/null
 else
-  git -C "$script_dir" checkout main > /dev/null # switch to main branch for update
+  git -C "$SECRET_TOOL_DIR_SRC" checkout main > /dev/null # switch to main branch for update
 fi
-git -C "$script_dir" pull > /dev/null
+git -C "$SECRET_TOOL_DIR_SRC" pull > /dev/null
 echo
 
 ### make sure the binary is installed

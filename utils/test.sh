@@ -43,14 +43,6 @@ FORMAT=yml "$SECRET_TOOL_EXE" configmap
 
 # --- beginning of tests ---
 
-# verify that secret_tool is available in PATH
-if (command -v secret_tool > /dev/null); then
-  echo '[OK] secret_tool is available in PATH'
-else
-  echo '[ERROR] secret_tool is NOT available in PATH'
-  errors=$((errors + 1))
-fi
-
 # verify that dotenvx is installed globally
 dotenvx_version=$(npm list -g | grep @dotenvx/dotenvx | cut -d'@' -f2-)
 if [ -n "$dotenvx_version" ]; then
@@ -66,6 +58,21 @@ if [ -n "$yq_version" ]; then
   echo "[OK] YQ is installed correctly"
 else
   echo '[ERROR] YQ is NOT installed correctly'
+  errors=$((errors + 1))
+fi
+
+if command -v op > /dev/null 2>&1; then
+  echo '[OK] op is installed'
+else
+  echo "[ERROR] op is not installed. Please install it from https://1password.com/downloads/command-line/"
+  errors=$((errors + 1))
+fi
+
+# check that either bun, podman or docker is installed
+if command -v bun > /dev/null 2>&1 || command -v ${CONTAINER_TOOL:-podman} > /dev/null 2>&1; then
+  echo '[OK] Executor is present'
+else
+  echo "[ERROR] No executor is present. Either bun, podman or docker must be installed"
   errors=$((errors + 1))
 fi
 
@@ -177,6 +184,14 @@ else
     echo '    https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation'
     errors=$((errors + 1))
   fi
+fi
+
+# verify that secret_tool is available in PATH
+if (command -v secret_tool > /dev/null); then
+  echo '[OK] secret_tool is available in PATH'
+else
+  echo '[ERROR] secret_tool is NOT available in PATH'
+  errors=$((errors + 1))
 fi
 
 # --- end of tests ---

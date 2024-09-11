@@ -75,6 +75,7 @@ const main = async () => {
       break;
     default:
       // displayVersion();
+      // TODO: dump log and/or refer to exitCode in documentation
   }
 };
 

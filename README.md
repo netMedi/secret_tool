@@ -34,13 +34,18 @@ Declare update_secret_tool block at the top level of `.circleci/config.yml`
 update_secret_tool: &update_secret_tool
   name: Update Secret Tool
   command: |
-    tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-    # change tagged_version value to exact tag, if needed; example: v1.6.4
+    npm install -g bun
+    tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name") # (1) use latest tagged release
+    # tagged_version=main # or (2) pin to target release / branch
 
+    export SKIP_OP_USE=1
     git clone git@github.com:netMedi/secret_tool.git ./tmp/secret_tool
     cd ./tmp/secret_tool
     git checkout $tagged_version
-    ./secret_utils.sh install
+    bun install
+    bun utils build
+    bun utils install
+
     secret_tool --version
 ```
 
@@ -67,7 +72,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v1.4.4 secret_tool --update
+  VERSION=v1.6.3 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -221,7 +226,7 @@ The reason express commands exist is to allow batch extraction in complex scenar
 
 ## Creating your own secret_map / integration for new projects
 
-- go to target project's root dir and create `secret_map.yml` (you can use [secret_map.sample.yml](./secret_map.sample.yml) as a starting point)
+- go to target project's root dir and create `secret_map.yml` (you can use [tests/secret_map.yml](./tests/secret_map.yml) as a starting point)
 - [gitignore /.env*](.gitignore) to prevent accidental secret file submission to git
 - if necessary, include non-gitignored contextual overrides via .env.* files with the same profile names (refer to Katedraali packages for examples)
 - rewrite package.json commands with `dotenvx run -f ...` wrapper and make sure to include all relevant profiles that are required for command (example: `"test": "dotenvx run -f ../../.env.test -f .env.test -- jest"` - package-level script would load global defaults and package-level .env files)
@@ -260,4 +265,4 @@ Notice how profile to derive from is marked with `&dev` and the new profile has 
 You can run secret_tool without compiling it. Use `bun src_run` or `./secret_utils.sh src_run`.
 To start utils you can have two options: `bun utils` and `./secret_utils.sh`.
 
-After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter.
+After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter (eslint).

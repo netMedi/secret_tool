@@ -37,9 +37,10 @@ update_secret_tool: &update_secret_tool
     if [ -z "$(command -v secret_tool)" ]; then
       npm install -g bun
 
-      tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name") # replace with 'main' for rolling release or with any exact tag (ex: v1.6.3)
+      tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
 
       export SKIP_OP_USE=1
+      rm -rf ./tmp/secret_tool 2> /dev/null || true
       git clone git@github.com:netMedi/secret_tool.git ./tmp/secret_tool
       cd ./tmp/secret_tool
       git checkout $tagged_version

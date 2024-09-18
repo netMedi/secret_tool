@@ -131,6 +131,8 @@ profiles:
 # ^ a totally valid map including a mixture of input formats
 ```
 
+If profile name contains slashes (`/`), it will be treated as output file path.
+
 ### Inline arrays
 
 If you need to declare an array you have a few options:
@@ -173,6 +175,9 @@ Examples:
   # extract secrets into a YAML file (./config/super_mega_test.yml)
   FILE_NAME_BASE=./config/super_mega_ FORMAT=yml secret_tool test
 ```
+
+[!] Make sure to end `FILE_NAME_BASE` with a slash if you want it to be a directory.
+[!] FORMAT is discarded if profile contains `--format` root level property (can be 'yml', 'json' or 'envfile').
 
 Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
 

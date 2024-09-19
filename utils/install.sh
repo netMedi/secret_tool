@@ -40,7 +40,7 @@ if [ "$SKIP_OP_USE" = "0" ]; then
   fi
 
   CURRENT_TOOL_VERSION=$(grep '"version": ' $SECRET_TOOL_DIR_SRC/package.json | cut -d '"' -f 4)
-  PROMPT_OK='[INFO] Approved version check passed' \
+  PROMPT_OK='[INFO] Approved version check' \
     PROMPT_FAIL='[INFO] Approved version check failed' \
     $SECRET_TOOL_DIR_SRC/ver_gte.sh $CURRENT_TOOL_VERSION $APPROVED_TOOL_VERSION || {
     echo "[INFO] Approved secret_tool's version in 1password employee vault: \"$APPROVED_TOOL_VERSION\""

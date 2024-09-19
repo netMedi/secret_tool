@@ -1,9 +1,14 @@
 #!/bin/sh
 # verify secret_tool's functionality
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
-SECRET_TOOL_EXE=${SECRET_TOOL_EXE:-$SECRET_TOOL_DIR_SRC/src/secret_tool.ts}
+SECRET_TOOL_EXE=${SECRET_TOOL_EXE:-secret_tool}
 DEBUG=${DEBUG:-0}
 errors=0
+
+if [ "$SECRET_TOOL_EXE" = "secret_tool" ] && [ -z "$(command -v secret_tool)" ]; then
+  echo '[INFO] secret_tool is not installed, testing the source directly'
+  SECRET_TOOL_EXE=$SECRET_TOOL_DIR_SRC/src/secret_tool.ts
+fi
 
 echo "Running secret_tool's self-tests [$SECRET_TOOL_EXE]..."
 echo

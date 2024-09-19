@@ -37,16 +37,16 @@ update_secret_tool: &update_secret_tool
     if [ -z "$(command -v secret_tool)" ]; then
       npm install -g bun
 
-      tagged_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
+      target_version=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
       # replace the above line with
-      #   tagged_version=main # rolling releases
-      #   tagged_version=v1.6.3 # for some fixed release (replace version number)
+      #   target_version=main # rolling releases
+      #   target_version=v2.1.0 # for a chosen tagged release (replace version number)
 
       export SKIP_OP_USE=1
       rm -rf /tmp/secret_tool 2> /dev/null || true
       git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
       cd /tmp/secret_tool
-      git checkout $tagged_version
+      git checkout $target_version
       bun install
       bun utils build
       bun utils install
@@ -80,7 +80,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v1.6.3 secret_tool --update
+  VERSION=v2.1.0 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -111,14 +111,15 @@ EXTRACT='my_profile_name another_profile' secret_tool
 
 Secret map can either be written as a configmap or a flat envfile (or a mix of those).
 
-Configmap keys are usually lower_case while envfile is all UPPER_CASE.
+Configmap keys are usually lower_case while flat env variables are all UPPER_CASE.
 
 Mixing those or writing in an inappropriate case is not critical and will only affect human-readability of a secret map.
 
-Nesting is either done in yaml manner or using double underscore (`__`) delimiter.
+Nesting is either done in yaml manner (by literal nesting) or using double underscore (`__`) delimiter.
 
 ```yaml
 ---
+tool_version: 2.1.0
 profiles:
   my_C00L_profile:
     some_typical_configmap:
@@ -165,7 +166,7 @@ my_special_string: '"quoted value 1","quoted value 2","quoted value 3"'
 
 ## Ouput format (machine- or human-readable)
 
-secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable.
+secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable. Can be abbreviated down to one letter.
 
 Examples:
 ```sh
@@ -176,7 +177,7 @@ Examples:
   FILE_NAME_BASE=./config/super_mega_ FORMAT=yml secret_tool test
 ```
 
-[!] Make sure to end `FILE_NAME_BASE` with a slash if you want it to be a directory.
+[!] Make sure to end `FILE_NAME_BASE` with a slash (`/`), if you want it to be a directory.
 [!] FORMAT is discarded if profile contains `--format` root level property (can be 'yml', 'json' or 'envfile').
 
 Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
@@ -201,33 +202,6 @@ Example:
 ```sh
 MY_VAR='!!' secret_tool dev # forcefully write empty value for MY_VAR
 ```
-
-<!--
-
-## Express set command
-
-Sometimes you may need to extract just one secret or append something to environment file that you do not to regenerate as a whole.
-That can be done with an express dump feature using ` -- ` (double dash command). You can do it as a single operation or have multiple targets, also can be chained to an existing extraction command. If target file is not present yet, it will be created.
-
-Examples:
-
-```sh
-# just one variable to extract
-secret_tool -- ./.env.whatever:SOMEVAR=:::op://Shared/demo20240531-secretTool/text
-
-# extract the whole profile and then two more extra variables
-secret_tool dev -- ./.env.dev:ANOTHERVAR=:::op://Shared/demo20240531-secretTool/text ./.env.dev:VAR2=sdfsdf
-```
-
-[!] Keep in mind that poorly named secret vaults (the ones that have spaces in the ref links) will need to be wrapped in quotation marks:
-
-```sh
-secret_tool -- "./.env.whatever:SOMEVAR=:::op://Shared/i am an expert in machine-friendly naming/text"
-```
-
-The reason express commands exist is to allow batch extraction in complex scenarios and avoid repetitive 1password auth checks.
-
--->
 
 
 ## Last time [uninstall]
@@ -278,4 +252,4 @@ Notice how profile to derive from is marked with `&dev` and the new profile has 
 You can run secret_tool without compiling it. Use `bun src_run` or `./secret_utils.sh src_run`.
 To start utils you can have two options: `bun utils` and `./secret_utils.sh`.
 
-After making changes verify all the shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter (eslint).
+After making changes verify shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter (eslint).

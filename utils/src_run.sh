@@ -1,8 +1,8 @@
 #!/bin/sh
 # run secret_tool from source without compiling it
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
-CONTAINER_TOOL=${CONTAINER_TOOL:-podman}
-CONTAINER_FILE_PERMISSIONS=${CONTAINER_FILE_PERMISSIONS:-z}
+CONTAINER_TOOL=${CONTAINER_TOOL:-docker}
+CONTAINER_FILE_PERMISSIONS=${CONTAINER_FILE_PERMISSIONS:-ro}
 src_in=$SECRET_TOOL_DIR_SRC/src/secret_tool.ts
 
 if command -v bun > /dev/null 2>&1; then
@@ -20,7 +20,7 @@ else
 
   bun_runner="$CONTAINER_TOOL run \
     $var_dump \
-      --rm -it -v $(pwd)/:/app:$CONTAINER_FILE_PERMISSIONS -w /app oven/bun:alpine bun"
+      --rm -it -v $SECRET_TOOL_DIR_SRC/:/app:$CONTAINER_FILE_PERMISSIONS -w /app oven/bun:alpine bun"
 fi
 
 $bun_runner $src_in $@

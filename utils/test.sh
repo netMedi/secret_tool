@@ -74,7 +74,7 @@ else
 fi
 
 # check that either bun, podman or docker is installed
-if command -v bun > /dev/null 2>&1 || command -v ${CONTAINER_TOOL:-podman} > /dev/null 2>&1; then
+if command -v bun > /dev/null 2>&1 || command -v ${CONTAINER_TOOL} > /dev/null 2>&1; then
   echo '[OK] Executor is present'
 else
   echo "[ERROR] No executor is present. Either bun, podman or docker must be installed"

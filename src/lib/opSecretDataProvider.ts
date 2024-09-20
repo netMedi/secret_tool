@@ -77,7 +77,11 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
 const opValueOrLiteral = (refOrValue: string, skipOpUse = false) => {
   if (refOrValue.startsWith(':::op://')) {
     if (skipOpUse) return '';
-    return read.parse(refOrValue.replace(':::op://', 'op://'));
+    try {
+      return read.parse(refOrValue.replace(':::op://', 'op://'));
+    } catch (_) {
+      return '';
+    }
   }
 
   return refOrValue;

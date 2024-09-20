@@ -193,10 +193,19 @@ const formatOutput = (
   secretProfile: EnvMap,
   locallyOverriddenVariables: string[],
   excludedBlankVariables: string[],
-  fileNameBase: string,
-  profile: string,
+  fileNameBaseRaw: string,
+  profileRaw: string,
   secretProps: SecretProps,
 ) => {
+  let [profile, fileNameBase] = [profileRaw, fileNameBaseRaw];
+  if (profileRaw.indexOf('/') !== -1) {
+    let pathBits = profileRaw.split('/');
+    profile = pathBits.pop() as string;
+    fileNameBase = (
+      pathBits.join('/') + '/' + (secretProps.fileNameBase || '')
+    ).replaceAll('//', '/'); // cosmetics: replace // with /
+  }
+
   const {format, liveDangerously, secretMapPath, skipHeadersUse} = secretProps;
 
   const formatId = (secretProfile['--format'] || format)[0].toLowerCase();
@@ -337,17 +346,11 @@ const output = async (
     const profileFlatDefault = flattenObj(profileFromMap);
     const [profileFlatOverridden, locallyOverriddenVariables, excludedBlankVariables] = overrideFlatObj(profileFlatDefault, localOverrides, secretProps);
 
-    if (profile.indexOf('/') !== -1) {
-      let pathBits = profile.split('/');
-      profile = pathBits.pop() as string;
-      secretProps.fileNameBase = pathBits.join('/') + '/' + (secretProps.fileNameBase || '');
-    }
-
     formatOutput(
       profileFlatOverridden,
       locallyOverriddenVariables,
       excludedBlankVariables,
-      secretProps.fileNameBase?.replaceAll('//', '/'), // cosmetics: replace // with /
+      secretProps.fileNameBase,
       profile,
       secretProps
     );

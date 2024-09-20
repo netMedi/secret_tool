@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FALLBACK=$(ps -p $$ -o comm=)
+FALLBACK=$(ps -p $$ -o comm= 2> /dev/null || cat /proc/$$/comm 2> /dev/null)
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
 
 if [ -z "$BEST_CHOICE" ]; then

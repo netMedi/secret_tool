@@ -2,6 +2,7 @@
 # create secret_tool's symlink
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
+CONTAINER_TOOL=${CONTAINER_TOOL:-docker}
 SKIP_OP_USE=${SKIP_OP_USE:-0}
 
 if [ "$SKIP_OP_USE" = "0" ]; then
@@ -20,24 +21,24 @@ if [ "$SKIP_OP_USE" = "0" ]; then
   fi
 
   # TODO: move this token creation/check somewhere else, it is not directly related secret_tool's installer
-  token_name='GITHUB_TOKEN'
-  if op read "op://Employee/$token_name/credential" 2> /dev/null | wc -l | grep -q 0; then
-    echo 'Create Github token: https://github.com/settings/tokens'
-    printf 'Enter your GitHub [read:packages] token: '
-    # vault Employee = Private
-    read -r token \
-      && sh -c "op item create \
-        --vault Private \
-        --title '$token_name' \
-        --tags guthub,secret_tool \
-        --category 'API Credential' \
-          'credential=$token' \
-          'expires=2999-12-31' \
-      " > /dev/null \
-      || echo "[ERROR] Failed to create '$token_name' in 1password employee vault"
-  else
-    echo "[INFO] '$token_name' is present in 1password employee vault"
-  fi
+  # token_name='GITHUB_TOKEN'
+  # if op read "op://Employee/$token_name/credential" 2> /dev/null | wc -l | grep -q 0; then
+  #   echo 'Create Github token: https://github.com/settings/tokens'
+  #   printf 'Enter your GitHub [read:packages] token: '
+  #   # vault Employee = Private
+  #   read -r token \
+  #     && sh -c "op item create \
+  #       --vault Private \
+  #       --title '$token_name' \
+  #       --tags guthub,secret_tool \
+  #       --category 'API Credential' \
+  #         'credential=$token' \
+  #         'expires=2999-12-31' \
+  #     " > /dev/null \
+  #     || echo "[ERROR] Failed to create '$token_name' in 1password employee vault"
+  # else
+  #   echo "[INFO] '$token_name' is present in 1password employee vault"
+  # fi
 
   CURRENT_TOOL_VERSION=$(grep '"version": ' $SECRET_TOOL_DIR_SRC/package.json | cut -d '"' -f 4)
   PROMPT_OK='[INFO] Approved version check' \

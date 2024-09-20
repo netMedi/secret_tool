@@ -18,12 +18,11 @@ git -C "$SECRET_TOOL_DIR_SRC" pull > /dev/null
 echo
 
 [ "$1" = "--no-install" ] && {
-  echo "[INFO] Sources updated. Run the script with the --install flag to install the new version."
+  echo "[INFO] Sources updated. Run the script without the --no-install flag to install the new version."
+  secret_tool --version
   exit 0
 }
 
 ### make sure the binary is installed
 export SECRET_TOOL_DIR_INSTALL
 $SECRET_TOOL_DIR_SRC/utils/install.sh || exit 1
-
-secret_tool --version

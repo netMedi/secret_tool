@@ -9,7 +9,7 @@ bin_out=$SECRET_TOOL_DIR_SRC/dist/secret_tool
 NODE_ENV=production
 
 command_line="bun install &> /dev/null && \
-  bun build '$src_in' --compile --minify --sourcemap --outfile '$bin_out'"
+  bun build '$src_in' --compile --define 'COMPILE_TIME_DATE=\"$(date)\"' --define 'COMPILE_TIME_DIR_SRC=\"${SECRET_TOOL_DIR_SRC}\"' --minify --sourcemap --outfile '$bin_out'"
 
 if command -v bun > /dev/null 2>&1; then
   sh -c "cd $SECRET_TOOL_DIR_SRC; $command_line" \

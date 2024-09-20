@@ -47,6 +47,7 @@ update_secret_tool: &update_secret_tool
       git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
       cd /tmp/secret_tool
       git checkout $VERSION
+      bun install 2> /dev/null || true
       ./secret_utils.sh install
       cd ~
 

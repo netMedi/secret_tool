@@ -97,9 +97,16 @@ if command -v secret_tool > /dev/null 2>&1 && [ "$(shasum -a 256 $(command -v se
 fi
 
 echo "Installing secret_tool to $SECRET_TOOL_DIR_INSTALL..."
-sudo sh -c "mkdir -p '$SECRET_TOOL_DIR_INSTALL'; rm '$SECRET_TOOL_DIR_INSTALL/secret_tool' > /dev/null 2>&1; cp -f '$SECRET_TOOL_DIR_SRC/dist/secret_tool' '$SECRET_TOOL_DIR_INSTALL/secret_tool' && chmod +x '$SECRET_TOOL_DIR_INSTALL/secret_tool'" \
-  && echo "[DONE] Secret tool has been installed. You may need to restart terminal, if the \"secret_tool\" command is not immediately available. Install info: $($SECRET_TOOL_DIR_INSTALL/secret_tool --version)" \
-  || {
+doas_cmd='sudo sh'
+if [ "$(id -u)" -eq 0 ]; then
+  doas_cmd='sh'
+fi
+
+$doas_cmd -c "mkdir -p '$SECRET_TOOL_DIR_INSTALL'; rm '$SECRET_TOOL_DIR_INSTALL/secret_tool' > /dev/null 2>&1; cp -f '$SECRET_TOOL_DIR_SRC/dist/secret_tool' '$SECRET_TOOL_DIR_INSTALL/secret_tool' && chmod +x '$SECRET_TOOL_DIR_INSTALL/secret_tool'" \
+  && {
+    echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available.'
+    $SECRET_TOOL_DIR_INSTALL/secret_tool --version
+  } || {
     echo '[ERROR] Failed to install secret_tool with sudo.'
     echo '[INFO] You can set up the alias instead:'
     echo

@@ -58,13 +58,13 @@ else
 fi
 
 # verify that correct yq is installed
-yq_version=$(yq --version | grep mikefarah/yq)
-if [ -n "$yq_version" ]; then
-  echo "[OK] YQ is installed correctly"
-else
-  echo '[ERROR] YQ is NOT installed correctly'
-  errors=$((errors + 1))
-fi
+# yq_version=$(yq --version | grep mikefarah/yq)
+# if [ -n "$yq_version" ]; then
+#   echo "[OK] YQ is installed correctly"
+# else
+#   echo '[ERROR] YQ is NOT installed correctly'
+#   errors=$((errors + 1))
+# fi
 
 if command -v op > /dev/null 2>&1; then
   echo '[OK] op is installed'

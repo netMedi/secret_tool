@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
 
+declare const COMPILE_TIME_DATE: string;
+declare const COMPILE_TIME_DIR_SRC: string;
+
 import pkgInfo from "../package.json" with { type: "json" };
 import output from "./lib/dumper";
 import selfInstall from "./lib/selfInstaller";
@@ -36,7 +39,12 @@ const helpText = `
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log(version, secret_tool_path);
+const displayVersion = () => console.log(
+  '\n  Version number:', version,
+  '\n  Executable path:', secret_tool_path,
+  '\n  Compiled from', COMPILE_TIME_DIR_SRC,
+  '\n  Compiled on', COMPILE_TIME_DATE
+);
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);

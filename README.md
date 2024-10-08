@@ -8,12 +8,10 @@ The tool to contextually handle environment variables and secrets in a secure wa
 Hard:
   - dash / ash / bash - command shell
   - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
-  - bun or container tool* - building the binary
-
-  Container tools* supported: docker and podman.
+  - bun - building the binary (make sure to **read the log output** after you install Bun, an additional step may be needed for zsh)
 
 Soft:
-  - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm global install !!!) - commands' wrapper
+  - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm **global install** !!!) - commands' wrapper
   - git - updates
 
 References:

@@ -1,16 +1,23 @@
 #!/usr/bin/env bun
 
+import { $ } from "bun";
+import { hostname, userInfo } from "os";
+
+declare const BUN_VERSION: string;
 declare const COMPILE_TIME_DATE: string;
 declare const COMPILE_TIME_DIR_SRC: string;
 
 import pkgInfo from "../package.json" with { type: "json" };
+
+import { SECRET_TOOL_DIR_SRC } from './lib/defaults';
 import output from "./lib/dumper";
 import selfInstall from "./lib/selfInstaller";
 import selfTest from "./lib/selfTester";
 import selfUpdate from "./lib/selfUpdater";
 
-const secret_tool_path = process.execPath.split('/').pop() === "bun" ? Bun.argv[1] : process.execPath;
-const SECRET_TOOL = process.env.SECRET_TOOL || secret_tool_path.split('/').pop();
+const srcRun = process.execPath.split('/').pop() === "bun";
+const secretToolPath = srcRun ? Bun.argv[1] : process.execPath;
+const SECRET_TOOL = process.env.SECRET_TOOL || secretToolPath.split('/').pop();
 const helpText = `
   Script: ${SECRET_TOOL}
   Purpose: Produce file(s) with environment variables and secrets from 1password using secret map
@@ -39,12 +46,22 @@ const helpText = `
 export const version = pkgInfo.version;
 
 const displayHelp = () => console.log(helpText.slice(1, -1));
-const displayVersion = () => console.log(
-  '\n  Version number:', version,
-  '\n  Executable path:', secret_tool_path,
-  '\n  Compiled from', COMPILE_TIME_DIR_SRC,
-  '\n  Compiled on', COMPILE_TIME_DATE
-);
+const displayVersion = () => {
+  console.log(
+    '  Version number   :', version,
+    '\n  Executable path  :', secretToolPath
+  );
+  if (srcRun) {
+    console.log('  This is a source run without installation. Use `--install` to install.');
+  } else {
+    console.log(
+      '  Compilation dir  :', COMPILE_TIME_DIR_SRC,
+      '\n  Compilation date :', COMPILE_TIME_DATE,
+      '\n  Compiler version : Bun', BUN_VERSION
+    );
+  }
+  console.log('  Context user     :', `${userInfo().username}@${hostname()}`);
+}
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);
@@ -54,25 +71,33 @@ const main = async () => {
     process.exit(0);
   }
 
+  // redundant shortcuts to secret_utils' operations
+  if (cliArguments.includes('--build')) {
+    await $`cd ${SECRET_TOOL_DIR_SRC} && sh ./secret_utils.sh build`;
+    process.exit(0);
+  }
+  if (cliArguments.includes('--install')) {
+    const noConfirm = ['-y', '--yes', '--no-confirm'].some(arg => cliArguments.includes(arg));
+    await selfInstall(noConfirm);
+    process.exit(0);
+  }
+  if (cliArguments.includes('--test')) {
+    await selfTest(Bun.argv[1]);
+    process.exit(0);
+  }
+  if (cliArguments.includes('--uninstall')) {
+    await $`cd ${SECRET_TOOL_DIR_SRC} && sh ./secret_utils.sh uninstall`;
+    process.exit(0);
+  }
   if (cliArguments.includes('--update')) {
     await selfUpdate();
     process.exit(0);
   }
 
-  if (cliArguments.includes('--install')) {
-    await selfInstall();
-    process.exit(0);
-  }
-
-  if (cliArguments.includes('--test')) {
-    await selfTest(Bun.argv[1]);
-    process.exit(0);
-  }
-
   if (cliArguments.includes('--help') || cliArguments.length === 0) {
     displayHelp();
-    console.log();
-    displayVersion();
+    // console.log();
+    // displayVersion();
     process.exit(0);
   }
 

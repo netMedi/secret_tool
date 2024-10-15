@@ -255,7 +255,7 @@ const formatOutput = (
   })();
 
   if (path === '--') {
-    console.log(output);
+    console.log(res);
     return;
   }
 
@@ -340,7 +340,7 @@ const output = async (
       process.exit(1);
     }
 
-    console.log(`\n[INFO] Extracting values (${profile})...`);
+    console.log(`\n[INFO] Extracting profile: ${profile} ...`);
 
     const profileFromMap = secretMap['profiles'][profile];
     const profileFlatDefault = flattenObj(profileFromMap);
@@ -355,6 +355,8 @@ const output = async (
       secretProps
     );
   });
+
+  console.log('\n[INFO] Extraction completed.\n');
 };
 
 export default output;

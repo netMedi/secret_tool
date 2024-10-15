@@ -1,5 +1,5 @@
 #!/bin/sh
-# delete secret_tool's symlink
+# remove secret_tool's binary from PATH
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 
 actual_install_path=$(command -v secret_tool 2> /dev/null)

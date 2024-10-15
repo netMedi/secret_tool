@@ -38,7 +38,7 @@ for fn in "$script_dir"/utils/*.sh; do
   whitelist="$whitelist $name"
 done
 
-if echo "$whitelist" | grep -wq "$1"; then
+if echo "$whitelist" | grep -wq -- "$1"; then
   routine=$1
 else
   routine='help'

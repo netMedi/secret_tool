@@ -1,9 +1,12 @@
 #!/bin/sh
-# create secret_tool's symlink
+# save secret_tool's binary to PATH
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 SECRET_TOOL_DIR_INSTALL=${SECRET_TOOL_DIR_INSTALL:-/usr/local/bin}
 CONTAINER_TOOL=${CONTAINER_TOOL:-docker}
 SKIP_OP_USE=${SKIP_OP_USE:-0}
+
+# if -y argument is present, set SKIP_OP_USE=1
+[ "$1" = "-y" ] || [ "$1" = "--yes" ] || [ "$1" = "--no-confirm" ] && SKIP_OP_USE=1
 
 if [ "$SKIP_OP_USE" = "0" ]; then
   echo '[INFO] Trying to log in to 1password...'
@@ -86,7 +89,7 @@ if [ "$SKIP_OP_USE" = "0" ]; then
 fi
 
 ### make sure the binary has been built
-$SECRET_TOOL_DIR_SRC/utils/build.sh || exit 1
+$SECRET_TOOL_DIR_SRC/utils/build.sh -q || exit 1
 
 ### create symlink if missing
 if command -v secret_tool > /dev/null 2>&1 && [ "$(shasum -a 256 $(command -v secret_tool))" = "$(shasum -a 256 "$SECRET_TOOL_DIR_SRC/dist/secret_tool")" ]; then
@@ -96,7 +99,8 @@ if command -v secret_tool > /dev/null 2>&1 && [ "$(shasum -a 256 $(command -v se
   }
 fi
 
-echo "Installing secret_tool to $SECRET_TOOL_DIR_INSTALL..."
+echo
+echo "[INFO] Installing secret_tool to $SECRET_TOOL_DIR_INSTALL..."
 doas_cmd='sudo sh'
 if [ "$(id -u)" -eq 0 ]; then
   doas_cmd='sh'
@@ -105,6 +109,7 @@ fi
 $doas_cmd -c "mkdir -p '$SECRET_TOOL_DIR_INSTALL'; rm '$SECRET_TOOL_DIR_INSTALL/secret_tool' > /dev/null 2>&1; cp -f '$SECRET_TOOL_DIR_SRC/dist/secret_tool' '$SECRET_TOOL_DIR_INSTALL/secret_tool' && chmod +x '$SECRET_TOOL_DIR_INSTALL/secret_tool'" \
   && {
     echo '[DONE] Secret tool has been installed. You may need to restart terminal, if the "secret_tool" command is not immediately available.'
+    echo
     $SECRET_TOOL_DIR_INSTALL/secret_tool --version
   } || {
     echo '[ERROR] Failed to install secret_tool with sudo.'

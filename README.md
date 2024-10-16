@@ -27,13 +27,14 @@ References:
 
 ## CI install
 
-Declare update_secret_tool block at the top level of `.circleci/config.yml`
+Declare install_secret_tool block at the top level of `.circleci/config.yml`
 ```sh
 commands:
+  # other commands...
   install_secret_tool: &install_secret_tool
     steps:
       - run:
-          name: Update Secret Tool
+          name: Install secret_tool
           command: |
             if [ -z "$(command -v secret_tool)" ]; then
               npm install -g bun
@@ -123,6 +124,7 @@ Nesting is either done in yaml manner (by literal nesting) or using double under
 tool_version: 2.1.4
 profiles:
   my_C00L_profile:
+    --format: yml # optional output format; envfile by default, yml or json
     some_typical_configmap:
       conf1:
         - val1
@@ -167,7 +169,7 @@ my_special_string: '"quoted value 1","quoted value 2","quoted value 3"'
 
 ## Ouput format (machine- or human-readable)
 
-secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable. Can be abbreviated down to one letter.
+secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable. Can be abbreviated down to one letter. Can be defined in a secret_map profile via `--format` attribute.
 
 Examples:
 ```sh

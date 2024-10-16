@@ -15,7 +15,7 @@ NODE_ENV=production
 # if -q argument is present, set QUIET=1
 [ "$1" = "-q" ] || [ "$1" = "--quiet" ] && QUIET=1
 
-bun_builder_cmd="bun install &> /dev/null && \
+bun_builder_cmd="bun install --production --frozen-lockfile &> /dev/null && \
   bun build '$src_in' --compile --define 'COMPILE_TIME_DATE=\"$(date)\"' --define 'COMPILE_TIME_DIR_SRC=\"${SECRET_TOOL_DIR_SRC}\"' --define \"BUN_VERSION='\$(bun --version) (builder: ${USER}@\$(hostname))'\" --minify --sourcemap --outfile '$bin_out'"
 
 if command -v bun > /dev/null 2>&1; then

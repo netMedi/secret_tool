@@ -1,7 +1,7 @@
 export type EnvMap = { [key: string]: any };
 
 export type SecretProps = {
-  secretMapPath: string;
+  secretMapPaths: string;
   format: string;
 
   excludeEmptyStrings: boolean;
@@ -17,4 +17,5 @@ export type SecretProps = {
 
   // skip backup creation if true
   liveDangerously: boolean;
+  metaData: { [key: string]: string };
 };

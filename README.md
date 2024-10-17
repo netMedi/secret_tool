@@ -42,7 +42,7 @@ commands:
               VERSION=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
               # replace the above line with
               #   VERSION=main # for a rolling release
-              #   VERSION=v2.1.4 # for a chosen tagged release (replace version number)
+              #   VERSION=v2.2.0 # for a chosen tagged release (replace version number)
 
               export SKIP_OP_USE=1
               rm -rf /tmp/secret_tool 2> /dev/null || true
@@ -82,7 +82,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v2.1.4 secret_tool --update
+  VERSION=v2.2.0 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -121,7 +121,7 @@ Nesting is either done in yaml manner (by literal nesting) or using double under
 
 ```yaml
 ---
-tool_version: 2.1.4
+tool_version: 2.2.0
 profiles:
   my_C00L_profile:
     --format: yml # optional output format; envfile by default, yml or json
@@ -136,6 +136,23 @@ profiles:
 ```
 
 If profile name contains slashes (`/`), it will be treated as output file path.
+
+### Where to place secret profiles
+
+Profiles for common use shall be placed into the `secret_map.yml` itself.
+
+Custom profiles for personal use can be placed wherever, but will be automagically loaded from `./secret_map.yml.d/` directory at the same level in the project. Alternatively you can refer to them by SECRET_MAP env variable: space separated list of files or masks (example command: `SECRET_MAP='~/my_maps/*.yml ~/Downloads/shared_map_from_teammate.yml' secret_tool --all`).
+
+```sh
+mikko@macbook-a2442:~/netMedi/secret_tool$ tree -L 2 ~/netMedi/Holvikaari | grep '\.yml'
+# <output trimmed>
+├── secret_map.yml
+├── secret_map.yml.d
+│   ├── my_random_profile1.yml
+│   └── my_random_profile2.yml
+mikko@macbooka2442:~/netMedi/secret_tool$
+```
+
 
 ### Inline arrays
 

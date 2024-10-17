@@ -23,5 +23,5 @@ catch (e) {
 
 export const SECRET_TOOL_GIT_REPO = 'git@github.com:netMedi/secret_tool.git';
 
-export const SECRET_MAP = './secret_map.yml';
+export const SECRET_MAP = './secret_map.yml ./secret_map.yml.d/*.yml';
 export const FORMAT = 'e'; // e: envfile, j: json, y: yaml

@@ -7,3 +7,6 @@ dist/*
 
 #bun.lockb
 node_modules
+
+secret_map.yml.d/*
+!secret_map.yml.d/.keep

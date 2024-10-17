@@ -1,11 +1,15 @@
+import { Glob } from 'bun';
 import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
+
+import { FORMAT, SECRET_MAP } from './defaults';
+import dumpFileHeaders from './headerDataProvider';
 import opValueOrLiteral, { getOpAuth } from './opSecretDataProvider';
 import produceBackup from './backuper';
-import dumpFileHeaders from './headerDataProvider';
+
 import type { EnvMap, SecretProps } from './types';
-import { FORMAT, SECRET_MAP } from './defaults';
+import fsDateTimeModified from './fsFileDataProvider';
 
 const castStringArr = (value: string | undefined): string[] => value ? value.split(' ') : [];
 const castBool = (value: string | undefined, defaultValue = false): boolean => value ? Boolean(JSON.parse(String(value))) : defaultValue;
@@ -206,7 +210,7 @@ const formatOutput = (
     ).replaceAll('//', '/'); // cosmetics: replace // with /
   }
 
-  const {format, liveDangerously, secretMapPath, skipHeadersUse} = secretProps;
+  const {format, liveDangerously, secretMapPaths, skipHeadersUse} = secretProps;
 
   const formatId = (secretProfile['--format'] || format)[0].toLowerCase();
   const skipBackups = liveDangerously;
@@ -233,7 +237,7 @@ const formatOutput = (
     ? undefined
     : dumpFileHeaders(
       path,
-      secretMapPath,
+      secretMapPaths,
       profile,
       locallyOverriddenVariables,
       excludedBlankVariables
@@ -273,7 +277,7 @@ const output = async (
   cliArguments: string[]
 ) => {
   const secretProps = {
-    secretMapPath: process.env.SECRET_MAP || SECRET_MAP,
+    secretMapPaths: process.env.SECRET_MAP || SECRET_MAP,
     format: process.env.FORMAT || FORMAT,
 
     excludeEmptyStrings: castBool(process.env.EXCLUDE_EMPTY_STRINGS, true),
@@ -287,17 +291,34 @@ const output = async (
     skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
 
     liveDangerously: castBool(process.env.LIVE_DANGEROUSLY),
+    metaData: {},
   } as SecretProps;
 
-  let secretMap: EnvMap;
-  // Get document, or throw exception on error
-  try {
-    secretMap = yaml.load(
-      fs.readFileSync(secretProps.secretMapPath, 'utf8')
-    ) as unknown as EnvMap;
-  } catch (_) {
-    console.log('[ERROR] Secret map is not available at', secretProps.secretMapPath);
-    process.exit(1);
+  const secretMap: EnvMap = {};
+  const secretMapFragments = secretProps.secretMapPaths.split(' ');
+  for (const secretMapMask of secretMapFragments) {
+    // get all files matching the mask or a single file, if not a mask
+    const glob = new Glob(secretMapMask);
+
+    // merge multiple yaml objects within secretMap
+    for await (const filePath of glob.scan('.')) {
+      let fileContent: EnvMap;
+      try {
+        fileContent = yaml.load(fs.readFileSync(filePath, 'utf8')) as unknown as EnvMap;
+        secretProps.metaData[filePath] = fsDateTimeModified(filePath);
+      } catch (_) {
+        console.log('[ERROR] Secret map is not available at', filePath);
+        process.exit(1);
+      }
+      // deep merge fileContent object into secretMap object
+      Object.keys(fileContent).forEach(key => {
+        if (secretMap[key] && typeof secretMap[key] === 'object') {
+          Object.assign(secretMap[key], fileContent[key]);
+        } else {
+          secretMap[key] = fileContent[key];
+        }
+      });
+    }
   }
 
   const profilesAll = Object.keys(secretMap['profiles'])
@@ -336,7 +357,11 @@ const output = async (
 
   profilesReq.forEach(profile => {
     if (!profilesAll.includes(profile)) {
-      console.log('[ERROR] Profile validation failed: profile', profile, 'was not found in', secretProps.secretMapPath);
+      console.log(
+        '[ERROR] Profile validation failed.',
+        `Profile "${profile}" was not found in`,
+        secretProps.secretMapPaths
+      );
       process.exit(1);
     }
 

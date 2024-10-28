@@ -19,15 +19,24 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     return [variableName, variableValue];
   };
 
-  let opProps: ListAccount | null = null;
-  try {
-    opProps = whoami();
-  } catch (_) {
+  const getApprovedVersion = () => read.parse('op://Employee/SECRET_TOOL/version');
 
+  const setSession = async () => {
     const [sessName, sessVal] = await sessionData();
 
-    if (!!!sessName) return null;
+    if (!!!sessName) return '';
     process.env[sessName] = sessVal;
+    return getApprovedVersion();
+  };
+
+  let opProps: ListAccount | null = null;
+  let approvedVersion: string = process.env.APPROVED_SECRET_TOOL_VERSION || '';
+
+  try {
+    [opProps, approvedVersion] = [whoami(), getApprovedVersion()];
+    if (!!!approvedVersion) throw new Error();
+  } catch (_) {
+    approvedVersion = await setSession();
   }
 
   if (opProps === null) {
@@ -38,12 +47,11 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     return getOpAuth(verbose);
   } else {
     if (verbose) console.log('[INFO] 1password login confirmed');
-    const approvedVersion = read.parse('op://Employee/SECRET_TOOL/version');
 
     // TODO: compare current version with approved version and throw exception (?) if necessary
     /*if (verbose) */console.log('[INFO] Approved secret_tool version:', approvedVersion);
     // console.log('[INFO] Installed secret_tool version:', version);
-    if (!verGreaterOrEqual(approvedVersion, version)) {
+    if (approvedVersion !== 'latest' && !verGreaterOrEqual(approvedVersion, version)) {
       console.log('[WARN] You need to approve version', version, 'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)');
       let xyn: string | null = '';
       while (xyn === '') {

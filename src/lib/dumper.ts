@@ -1,4 +1,4 @@
-import { Glob } from 'bun';
+import { sync } from 'glob';
 import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
@@ -112,7 +112,7 @@ const envFileContent = (inputObj: object) => {
   const flatObj = flattenObj(inputObj);
 
   let envfileString: string[] = [];
-  yaml.dump(flatObj, { forceQuotes: true, quotingType: '"' })
+  yaml.dump(flatObj, { forceQuotes: true, quotingType: "'" })
     .split('\n').forEach((line: string) => {
       const separator = ': ';
       const [key, ...rest] = line.split(separator);
@@ -296,21 +296,22 @@ const output = async (
 
   const secretMap: EnvMap = {};
   const secretMapFragments = secretProps.secretMapPaths.split(' ');
+  let secretMapFragmentsRead = 0;
   for (const secretMapMask of secretMapFragments) {
-    // get all files matching the mask or a single file, if not a mask
-    const glob = new Glob(secretMapMask);
+    // Read the file directly using bun
+    const filePaths = sync(secretMapMask);
 
-    // merge multiple yaml objects within secretMap
-    for await (const filePath of glob.scan('.')) {
+    for (const filePath of filePaths) {
       let fileContent: EnvMap;
       try {
         fileContent = yaml.load(fs.readFileSync(filePath, 'utf8')) as unknown as EnvMap;
         secretProps.metaData[filePath] = fsDateTimeModified(filePath);
+        secretMapFragmentsRead++;
       } catch (_) {
-        console.log('[ERROR] Secret map is not available at', filePath);
-        process.exit(1);
+        continue;
       }
-      // deep merge fileContent object into secretMap object
+
+      // Deep merge fileContent object into secretMap object
       Object.keys(fileContent).forEach(key => {
         if (secretMap[key] && typeof secretMap[key] === 'object') {
           Object.assign(secretMap[key], fileContent[key]);
@@ -319,6 +320,17 @@ const output = async (
         }
       });
     }
+  }
+
+  if (secretMapFragmentsRead === 0) {
+    console.log('[ERROR] Secret map not found in', secretMapFragments);
+    console.log('[INFO] You can set SECRET_MAP environment variable (space separated list of masks)');
+    process.exit(1);
+  }
+
+  if (secretMap['profiles'] === undefined) {
+    console.log('[ERROR] Secret profiles are not available');
+    process.exit(1);
   }
 
   const profilesAll = Object.keys(secretMap['profiles'])
@@ -360,7 +372,7 @@ const output = async (
       console.log(
         '[ERROR] Profile validation failed.',
         `Profile "${profile}" was not found in`,
-        secretProps.secretMapPaths
+        Object.keys(secretProps.metaData)
       );
       process.exit(1);
     }

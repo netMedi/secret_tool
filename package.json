@@ -1,14 +1,15 @@
 {
   "name": "secret_tool",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
     "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh"
   },
   "type": "module",
   "dependencies": {
-    "js-yaml": "^4.1.0",
-    "@1password/op-js": "^0.1.13"
+    "@1password/op-js": "^0.1.13",
+    "glob": "^11.0.0",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@types/bun": "^1.1.11",

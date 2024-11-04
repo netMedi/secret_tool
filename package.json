@@ -1,6 +1,6 @@
 {
   "name": "secret_tool",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
     "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh"
@@ -12,7 +12,7 @@
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.11",
+    "@types/bun": "^1.1.13",
     "@types/js-yaml": "^4.0.9"
   }
 }

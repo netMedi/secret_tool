@@ -19,8 +19,8 @@ export SKIP_OP_MARKER="$SECRET_TOOL_DIR_SRC/tests/.env.SKIP_OP_MARKER"
 rm "$SKIP_OP_MARKER" 2> /dev/null
 
 SKIP_OP_MARKER_WRITE=1 \
-TEST_VAR_LOCAL_OVERRIDE1=overridden \
-TEST_VAR_LOCAL_OVERRIDE2='!!' \
+TEST_VAR__LOCAL_OVERRIDE1=overridden \
+TEST_VAR__LOCAL_OVERRIDE2='!!' \
   "$SECRET_TOOL_EXE" \
     all_tests pat
 
@@ -30,14 +30,14 @@ fi
 export SKIP_OP_USE=1 # this is to skip OP use in following tests only
 
 FORMAT=json \
-TEST_VAR_LOCAL_OVERRIDE1=overridden \
-TEST_VAR_LOCAL_OVERRIDE2='!!' \
+TEST_VAR__LOCAL_OVERRIDE1=overridden \
+TEST_VAR__LOCAL_OVERRIDE2='!!' \
   "$SECRET_TOOL_EXE" \
     all_tests
 
 FORMAT=yml \
-TEST_VAR_LOCAL_OVERRIDE1=overridden \
-TEST_VAR_LOCAL_OVERRIDE2='!!' \
+TEST_VAR__LOCAL_OVERRIDE1=overridden \
+TEST_VAR__LOCAL_OVERRIDE2='!!' \
   "$SECRET_TOOL_EXE" \
     all_tests
 
@@ -82,7 +82,7 @@ else
 fi
 
 # local env override 1
-if (grep -q "^TEST_VAR_LOCAL_OVERRIDE1='overridden'" "${FILE_NAME_BASE}all_tests"); then
+if (grep -q "^TEST_VAR__LOCAL_OVERRIDE1='overridden'" "${FILE_NAME_BASE}all_tests"); then
   echo '[OK] Locally overridden value 1 was used'
 else
   echo '[ERROR] Locally overridden value 1 was ignored'
@@ -90,7 +90,7 @@ else
 fi
 
 # local env override 2
-if (grep -q "^TEST_VAR_LOCAL_OVERRIDE2='present'" "${FILE_NAME_BASE}all_tests"); then
+if (grep -q "^TEST_VAR__LOCAL_OVERRIDE2='present'" "${FILE_NAME_BASE}all_tests"); then
   echo '[ERROR] Locally overridden value 2 was ignored (discard)'
   errors=$((errors + 1))
 else
@@ -98,7 +98,7 @@ else
 fi
 
 # simple number
-if (grep -q ^TEST_VAR_NUMBER "${FILE_NAME_BASE}all_tests"); then
+if (grep -q ^TEST_VAR__NUMBER "${FILE_NAME_BASE}all_tests"); then
   echo '[OK] Numeric value is present'
 else
   echo '[ERROR] Numeric value is missing'
@@ -106,7 +106,7 @@ else
 fi
 
 # simple string
-if (grep -q ^TEST_VAR_STRING "${FILE_NAME_BASE}all_tests"); then
+if (grep -q ^TEST_VAR__STRING "${FILE_NAME_BASE}all_tests"); then
   echo '[OK] String value is present'
 else
   echo '[ERROR] String value is missing'
@@ -114,7 +114,7 @@ else
 fi
 
 # verify base profile values has been inherited
-if (grep -q ^TEST_VAR_INHERITANCE_1=1 "${FILE_NAME_BASE}all_tests"); then
+if (grep -q ^TEST_VAR__INHERITANCE_1=1 "${FILE_NAME_BASE}all_tests"); then
   echo '[OK] YAML inheritance test passed'
 else
   echo '[ERROR] YAML inheritance test failed'
@@ -167,7 +167,7 @@ fi
 if [ -f "$SKIP_OP_MARKER" ]; then
   echo '[INFO] 1password reference value is missing (skipped)'
 else
-  if (grep -q ^TEST_VAR_1PASSWORD_REF "${FILE_NAME_BASE}pat"); then
+  if (grep -q ^TEST_VAR__1PASSWORD_REF "${FILE_NAME_BASE}pat"); then
     echo '[OK] 1password reference value is present'
   else
     echo '[ERROR] 1password reference value is missing'

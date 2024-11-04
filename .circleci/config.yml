@@ -1,0 +1,27 @@
+version: 2.1
+
+executors:
+  default-executor:
+    docker:
+      - image: imbios/bun-node:latest-18-alpine
+
+commands:
+  perform-self-test:
+    steps:
+      - run:
+          name: Perform self test
+          command: |
+            SKIP_OP_USE=1 ./secret_utils.sh test
+
+jobs:
+  test-secret_tool:
+    executor: default-executor
+    steps:
+      - checkout
+      - perform-self-test
+
+
+workflows:
+  test:
+    jobs:
+      - test-secret_tool

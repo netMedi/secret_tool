@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 import { dateFromMTime } from './fsFileDataProvider';
-import { version } from '../secret_tool';
+import { TOOL_VERSION } from './pkgInfo';
 // import gitDateTimeModified from './gitFileDataProvider';
 import type { EnvMap } from './types';
 
@@ -17,7 +17,7 @@ const dumpFileHeaders = (
     '# Map path': resolve(mapPath),
     '# Profile': profileName,
     '# Date of generatation': dateFromMTime(new Date()),
-    '# Secret tool version': version,
+    '# Secret tool version': TOOL_VERSION,
     // '# Secret map release': gitDateTimeModified(mapPath),
     '# Locally overridden variables': locallyOverriddenVariables,
     '# Excluded (blank) string variables': excludedBlankVariables,

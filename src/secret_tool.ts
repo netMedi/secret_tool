@@ -7,9 +7,8 @@ declare const BUN_VERSION: string;
 declare const COMPILE_TIME_DATE: string;
 declare const COMPILE_TIME_DIR_SRC: string;
 
-import pkgInfo from "../package.json" with { type: "json" };
-
 import { SECRET_TOOL_DIR_SRC } from './lib/defaults';
+import { TOOL_VERSION } from "./lib/pkgInfo";
 import output from "./lib/dumper";
 import selfInstall from "./lib/selfInstaller";
 import selfTest from "./lib/selfTester";
@@ -43,12 +42,10 @@ const helpText = `
     SKIP_OP_USE=1 ${SECRET_TOOL} ci                 # do not use 1password
 `;
 
-export const version = pkgInfo.version;
-
 const displayHelp = () => console.log(helpText.slice(1, -1));
 const displayVersion = () => {
   console.log(
-    '  Version number   :', version,
+    '  Version number   :', TOOL_VERSION,
     '\n  Executable path  :', secretToolPath
   );
   if (srcRun) {

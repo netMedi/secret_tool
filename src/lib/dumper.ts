@@ -4,12 +4,15 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 
 import { FORMAT, SECRET_MAP } from './defaults';
+import { TOOL_VERSION } from './pkgInfo';
+
 import dumpFileHeaders from './headerDataProvider';
 import opValueOrLiteral, { getOpAuth } from './opSecretDataProvider';
 import produceBackup from './backuper';
 
 import type { EnvMap, SecretProps } from './types';
 import fsDateTimeModified from './fsFileDataProvider';
+import verGreaterOrEqual from './verGte';
 
 const castStringArr = (value: string | undefined): string[] => value ? value.split(' ') : [];
 const castBool = (value: string | undefined, defaultValue = false): boolean => value ? Boolean(JSON.parse(String(value))) : defaultValue;
@@ -222,7 +225,7 @@ const formatOutput = (
 
   const {format, liveDangerously, secretMapPaths, skipHeadersUse} = secretProps;
 
-  const formatId = (secretProfile['--format'] || format)[0].toLowerCase();
+  const formatId = (secretProfile['--FORMAT'] || format)[0].toLowerCase();
   const skipBackups = liveDangerously;
 
   let extension = '';
@@ -308,7 +311,7 @@ const output = async (
   const secretMapFragments = secretProps.secretMapPaths.split(' ');
   let secretMapFragmentsRead = 0;
   for (const secretMapMask of secretMapFragments) {
-    // Read the file directly using bun
+    // Read the files using glob
     const filePaths = sync(secretMapMask);
 
     for (const filePath of filePaths) {
@@ -335,6 +338,17 @@ const output = async (
   if (secretMapFragmentsRead === 0) {
     console.log('[ERROR] Secret map not found in', secretMapFragments);
     console.log('[INFO] You can set SECRET_MAP environment variable (space separated list of masks)');
+    process.exit(1);
+  }
+
+  const smToolVersionMin = secretMap['tool_version'];
+  if (smToolVersionMin !== undefined && !verGreaterOrEqual(TOOL_VERSION, smToolVersionMin)) {
+    console.log('[ERROR] Secret tool installed is too old to handle this secret map.');
+    console.log('[INFO] Min required secret_tool version :', smToolVersionMin);
+    console.log('[INFO] Installed secret_tool version    :', TOOL_VERSION);
+    console.log();
+    console.log('[INFO] You can update secret_tool by running:');
+    console.log(`  VERSION=v${smToolVersionMin} secret_tool --update`);
     process.exit(1);
   }
 

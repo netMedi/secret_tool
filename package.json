@@ -1,6 +1,6 @@
 {
   "name": "secret_tool",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
     "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh"

@@ -1,5 +1,5 @@
 import { read, whoami, type ListAccount, validateCli } from "@1password/op-js";
-import { version } from "../secret_tool";
+import { TOOL_VERSION } from "./pkgInfo";
 import verGreaterOrEqual from "./verGte";
 
 export const getOpAuth = async (verbose = false): Promise<ListAccount | null> => {
@@ -51,8 +51,8 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     // TODO: compare current version with approved version and throw exception (?) if necessary
     /*if (verbose) */console.log('[INFO] Approved secret_tool version:', approvedVersion);
     // console.log('[INFO] Installed secret_tool version:', version);
-    if (approvedVersion !== 'latest' && !verGreaterOrEqual(approvedVersion, version)) {
-      console.log('[WARN] You need to approve version', version, 'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)');
+    if (approvedVersion !== 'latest' && !verGreaterOrEqual(approvedVersion, TOOL_VERSION)) {
+      console.log('[WARN] You need to approve version', TOOL_VERSION, 'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)');
       let xyn: string | null = '';
       while (xyn === '') {
         console.log();

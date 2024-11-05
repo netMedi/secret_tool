@@ -56,8 +56,18 @@ const flattenObj = (inputObj: EnvMap) => {
       return acc;
     }, {});
 
-  const flatObjUnsorted = flattenNestedObjects(flattenNestedArray(inputObj));
-  return Object.fromEntries(Object.entries(flatObjUnsorted).sort());
+  const flatObj = flattenNestedObjects(flattenNestedArray(inputObj));
+
+  // make flatObj keys uppercase
+  const flatObjUppercase = Object.keys(flatObj).reduce(
+    (acc: { [key: string]: any }, key) => {
+      acc[key.toUpperCase()] = flatObj[key];
+      return acc;
+    },
+    {} as { [key: string]: any }
+  );
+
+  return Object.fromEntries(Object.entries(flatObjUppercase).sort());
 }
 
 const overrideFlatObj = (
@@ -381,7 +391,24 @@ const output = async (
 
     const profileFromMap = secretMap['profiles'][profile];
     const profileFlatDefault = flattenObj(profileFromMap);
-    const [profileFlatOverridden, locallyOverriddenVariables, excludedBlankVariables] = overrideFlatObj(profileFlatDefault, localOverrides, secretProps);
+
+    const profilesToExtend: EnvMap[] = [];
+
+    let baseProfileToExtendUpon = profileFromMap['--extend'];
+    while (baseProfileToExtendUpon !== undefined) {
+      const newBase = secretMap['profiles'][baseProfileToExtendUpon];
+      if (newBase === undefined) {
+        console.log(`[ERROR] Extending on top of profile "${baseProfileToExtendUpon}" is not possible. It was not found`);
+        process.exit(1);
+      }
+
+      profilesToExtend.unshift(flattenObj(newBase));
+      baseProfileToExtendUpon = newBase['--extend'];
+    }
+
+    const profileFlatExtended = Object.assign({}, ...profilesToExtend, profileFlatDefault);
+
+    const [profileFlatOverridden, locallyOverriddenVariables, excludedBlankVariables] = overrideFlatObj(profileFlatExtended, localOverrides, secretProps);
 
     formatOutput(
       profileFlatOverridden,

@@ -246,23 +246,23 @@ Profiles starting with double-dash are considered internal templates and therefo
 
 ### PROFILE inheritance
 
-YAML has an inheritance feature built in. You do not have to redeclare the repeating values again if they are already defined in existing profile. For example, if you need to create a close derivative of "dev" profile adding a few extra variables on top, you may inherit existing ones using anchor:
+Secret map profiles support inheritance. You do not have to redeclare repeating values again if they are already defined in existing profile. Instead define the source profile with `--extend` field at target profile's root level. For example, if you need to create a close derivative of "dev" profile adding a few extra variables on top, you may extend it via the `--extend` field:
 
 ```yaml
 # ...
 
-dev: &dev
+dev:
   var1: 1
   var2: 'b'
   var3: 'c'
 
 dev-extended:
-  <<: *dev
+  --extend: dev
   var3: 'new value'
   var4: 'new variable'
 ```
 
-Notice how profile to derive from is marked with `&dev` and the new profile has `<<: *dev` essentially including existing profile as a template to modify and extend.
+[Note] While YAML natively supports overriding fields by using anchors `&name` and `<<: *name` notation, this would replace the whole block, so `--extend` field provides a more flexible approach when merging is desired.
 
 
 ## Modifying secret_tool scripts

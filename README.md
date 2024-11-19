@@ -30,33 +30,38 @@ References:
 Declare install_secret_tool block at the top level of `.circleci/config.yml`
 ```sh
 commands:
-  # other commands...
-  install_secret_tool: &install_secret_tool
+
+  # ... other commands ...
+
+  install_secret_tool:
     steps:
       - run:
           name: Install secret_tool
           command: |
             if [ -z "$(command -v secret_tool)" ]; then
-              npm install -g bun
+            npm install -g bun 2> /dev/null || sudo npm install -g bun
 
-              VERSION=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-              # replace the above line with
-              #   VERSION=main # for a rolling release
-              #   VERSION=v2.2.0 # for a chosen tagged release (replace version number)
+            # VERSION=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
+            ## replace the above line with
+            VERSION=v2.5.1 # for a chosen tagged release (replace version number)
 
-              export SKIP_OP_USE=1
-              rm -rf /tmp/secret_tool 2> /dev/null || true
-              git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
-              cd /tmp/secret_tool
-              git checkout $VERSION
-              bun install --production --frozen-lockfile 2> /dev/null || true
-              ./secret_utils.sh install
-              cd ~
+            export SKIP_OP_USE=1
+            rm -rf /tmp/secret_tool 2> /dev/null || true
+            touch ~/.ssh/known_hosts 2> /dev/null || true
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
+            cd /tmp/secret_tool
+            git checkout $VERSION
+            bun install --production --frozen-lockfile 2> /dev/null || true
+            ./secret_utils.sh install
+            cd ~
 
-              rm -rf /tmp/secret_tool
-            fi
+            rm -rf /tmp/secret_tool
+          fi
 
-            secret_tool --version
+          secret_tool --version
+
+  # ... other commands ...
 ```
 
 Whenever you need `secret_tool` installed in the context, include it as a step:
@@ -82,7 +87,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v2.2.0 secret_tool --update
+  VERSION=v2.5.1 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -121,7 +126,7 @@ Nesting is either done in yaml manner (by literal nesting) or using double under
 
 ```yaml
 ---
-tool_version: 2.2.0
+tool_version: 2.5.1
 profiles:
   my_C00L_profile:
     --format: yml # optional output format; envfile by default, yml or json

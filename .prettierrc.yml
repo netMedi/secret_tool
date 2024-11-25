@@ -1,0 +1,27 @@
+printWidth: 80
+trailingComma: all
+arrowParens: avoid
+endOfLine: lf
+semi: true
+singleQuote: true
+tabWidth: 2
+
+overrides:
+  - files:
+      - "*.ts"
+      - "*.tsx"
+    options:
+      parser: typescript
+  - files:
+      - "*.json"
+    options:
+      parser: json
+  - files:
+      - "*.yml"
+      - "*.yaml"
+    options:
+      parser: yaml
+  - files:
+      - "*.md"
+    options:
+      parser: markdown

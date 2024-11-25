@@ -1,7 +1,7 @@
-import { $ } from "bun";
-import { existsSync } from "fs";
+import { $ } from 'bun';
+import { existsSync } from 'fs';
 import { SECRET_TOOL_DIR_SRC } from './defaults';
-import selfUpdate from "./selfUpdater";
+import selfUpdate from './selfUpdater';
 
 const selfTest = async (secretToolExe = 'secret_tool') => {
   if (existsSync(SECRET_TOOL_DIR_SRC)) {

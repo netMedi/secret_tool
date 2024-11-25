@@ -14,11 +14,12 @@ import type { EnvMap, SecretProps } from './types';
 import fsDateTimeModified from './fsFileDataProvider';
 import verGreaterOrEqual from './verGte';
 
-const castStringArr = (value: string | undefined): string[] => value ? value.split(' ') : [];
-const castBool = (value: string | undefined, defaultValue = false): boolean => value ? Boolean(JSON.parse(String(value))) : defaultValue;
+const castStringArr = (value: string | undefined): string[] =>
+  value ? value.split(' ') : [];
+const castBool = (value: string | undefined, defaultValue = false): boolean =>
+  value ? Boolean(JSON.parse(String(value))) : defaultValue;
 
 const flattenObj = (inputObj: EnvMap) => {
-
   // flatten nested arrays by adding index to key using double underscore as delimiter
   const flattenNestedArray = (obj: { [key: string]: any }, prefix = '') =>
     Object.keys(obj).reduce((acc: { [key: string]: any }, k) => {
@@ -47,7 +48,11 @@ const flattenObj = (inputObj: EnvMap) => {
   const flattenNestedObjects = (obj: { [key: string]: any }, prefix = '') =>
     Object.keys(obj).reduce((acc: { [key: string]: any }, k) => {
       const pre = prefix.length ? prefix + '__' : '';
-      if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+      if (
+        typeof obj[k] === 'object' &&
+        obj[k] !== null &&
+        !Array.isArray(obj[k])
+      ) {
         if (Object.keys(obj[k]).length === 0) {
           acc[pre + k] = {}; // Include empty objects
         } else {
@@ -67,16 +72,16 @@ const flattenObj = (inputObj: EnvMap) => {
       acc[key.toUpperCase()] = flatObj[key];
       return acc;
     },
-    {} as { [key: string]: any }
+    {} as { [key: string]: any },
   );
 
   return Object.fromEntries(Object.entries(flatObjUppercase).sort());
-}
+};
 
 const overrideFlatObj = (
   inputObj: EnvMap,
   localOverrides: EnvMap,
-  secretProps: SecretProps
+  secretProps: SecretProps,
 ): [EnvMap, string[], string[]] => {
   // for each key present in inputObj replace value with value from overrides if present
   const excludedBlankVariables: string[] = [];
@@ -110,23 +115,23 @@ const overrideFlatObj = (
     }
   }
   return [inputObj, locallyOverriddenVariables, excludedBlankVariables];
-}
+};
 
 // replaces surrounding double-quotes with single-quotes
 // if there are no single-quotes or dollars inside
 const switchQuotes = (val: string) => {
   if (!val.startsWith('"')) return val;
-  return (val.includes("'") || val.includes("$"))
-    ? val
-    : `'${val.slice(1, -1)}'`;
+  return val.includes("'") || val.includes('$') ? val : `'${val.slice(1, -1)}'`;
 };
 
 const envFileContent = (inputObj: object) => {
   const flatObj = flattenObj(inputObj);
 
   let envfileString: string[] = [];
-  yaml.dump(flatObj, { forceQuotes: true, quotingType: "'" })
-    .split('\n').forEach((line: string) => {
+  yaml
+    .dump(flatObj, { forceQuotes: true, quotingType: "'" })
+    .split('\n')
+    .forEach((line: string) => {
       const separator = ': ';
       const [key, ...rest] = line.split(separator);
       const value = rest.join(separator);
@@ -143,13 +148,12 @@ const envFileContent = (inputObj: object) => {
             envfileString.push(`${keyName}=${switchQuotes(value)}`);
         }
       }
-    })
+    });
 
   return envfileString.sort().join('\n') + '\n';
 };
 
 const nestifyObj = (inputObj: object) => {
-
   // convert flat object to nested object
   const nestify = (obj: { [key: string]: any }) => {
     const result: { [key: string]: any } = {};
@@ -219,17 +223,20 @@ const formatOutput = (
     let pathBits = profileRaw.split('/');
     profile = pathBits.pop() as string;
     fileNameBase = (
-      pathBits.join('/') + '/' + (secretProps.fileNameBase || '')
+      pathBits.join('/') +
+      '/' +
+      (secretProps.fileNameBase || '')
     ).replaceAll('//', '/'); // cosmetics: replace // with /
   }
 
-  const {format, liveDangerously, secretMapPaths, skipHeadersUse} = secretProps;
+  const { format, liveDangerously, secretMapPaths, skipHeadersUse } =
+    secretProps;
 
   const formatId = (secretProfile['--FORMAT'] || format)[0].toLowerCase();
   const skipBackups = liveDangerously;
 
   let extension = '';
-  switch(formatId){
+  switch (formatId) {
     case 'j':
       extension = '.json';
       break;
@@ -249,12 +256,12 @@ const formatOutput = (
   const headers = skipHeadersUse
     ? undefined
     : dumpFileHeaders(
-      path,
-      secretMapPaths,
-      profile,
-      locallyOverriddenVariables,
-      excludedBlankVariables
-    );
+        path,
+        secretMapPaths,
+        profile,
+        locallyOverriddenVariables,
+        excludedBlankVariables,
+      );
 
   let res = (() => {
     switch (formatId) {
@@ -264,9 +271,12 @@ const formatOutput = (
         return yamlFileContent({ '//': headers, ...secretProfile });
       default:
         const cleanHeaders: string[] = [];
-        yaml.dump(headers, { flowLevel: 1 })
+        yaml
+          .dump(headers, { flowLevel: 1 })
           .split('\n')
-          .forEach((line: string) => cleanHeaders.push(line.slice(1).replace("': ", ': ')));
+          .forEach((line: string) =>
+            cleanHeaders.push(line.slice(1).replace("': ", ': ')),
+          );
         return cleanHeaders.join('\n') + '\n' + envFileContent(secretProfile);
     }
   })();
@@ -285,10 +295,7 @@ const formatOutput = (
   }
 };
 
-const output = async (
-  localOverrides: EnvMap,
-  cliArguments: string[]
-) => {
+const output = async (localOverrides: EnvMap, cliArguments: string[]) => {
   const secretProps = {
     secretMapPaths: process.env.SECRET_MAP || SECRET_MAP,
     format: process.env.FORMAT || FORMAT,
@@ -300,7 +307,7 @@ const output = async (
     skipHeadersUse: castBool(process.env.SKIP_HEADERS_USE),
     skipOpUse: castBool(process.env.SKIP_OP_USE),
 
-    skipOpMarker: process.env.SKIP_OP_MARKER ,
+    skipOpMarker: process.env.SKIP_OP_MARKER,
     skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
 
     liveDangerously: castBool(process.env.LIVE_DANGEROUSLY),
@@ -317,7 +324,9 @@ const output = async (
     for (const filePath of filePaths) {
       let fileContent: EnvMap;
       try {
-        fileContent = yaml.load(fs.readFileSync(filePath, 'utf8')) as unknown as EnvMap;
+        fileContent = yaml.load(
+          fs.readFileSync(filePath, 'utf8'),
+        ) as unknown as EnvMap;
         secretProps.metaData[filePath] = fsDateTimeModified(filePath);
         secretMapFragmentsRead++;
       } catch (_) {
@@ -337,13 +346,20 @@ const output = async (
 
   if (secretMapFragmentsRead === 0) {
     console.log('[ERROR] Secret map not found in', secretMapFragments);
-    console.log('[INFO] You can set SECRET_MAP environment variable (space separated list of masks)');
+    console.log(
+      '[INFO] You can set SECRET_MAP environment variable (space separated list of masks)',
+    );
     process.exit(1);
   }
 
   const smToolVersionMin = secretMap['tool_version'];
-  if (smToolVersionMin !== undefined && !verGreaterOrEqual(TOOL_VERSION, smToolVersionMin)) {
-    console.log('[ERROR] Secret tool installed is too old to handle this secret map.');
+  if (
+    smToolVersionMin !== undefined &&
+    !verGreaterOrEqual(TOOL_VERSION, smToolVersionMin)
+  ) {
+    console.log(
+      '[ERROR] Secret tool installed is too old to handle this secret map.',
+    );
     console.log('[INFO] Min required secret_tool version :', smToolVersionMin);
     console.log('[INFO] Installed secret_tool version    :', TOOL_VERSION);
     console.log();
@@ -368,10 +384,7 @@ const output = async (
 
   const profilesReq = cliArguments.includes('--all')
     ? profilesAll
-    : [
-      ...secretProps.extract,
-      ...cliArguments
-    ];
+    : [...secretProps.extract, ...cliArguments];
 
   if (profilesReq.length === 0) {
     return 1;
@@ -396,7 +409,7 @@ const output = async (
       console.log(
         '[ERROR] Profile validation failed.',
         `Profile "${profile}" was not found in`,
-        Object.keys(secretProps.metaData)
+        Object.keys(secretProps.metaData),
       );
       process.exit(1);
     }
@@ -412,7 +425,9 @@ const output = async (
     while (baseProfileToExtendUpon !== undefined) {
       const newBase = secretMap['profiles'][baseProfileToExtendUpon];
       if (newBase === undefined) {
-        console.log(`[ERROR] Extending on top of profile "${baseProfileToExtendUpon}" is not possible. It was not found`);
+        console.log(
+          `[ERROR] Extending on top of profile "${baseProfileToExtendUpon}" is not possible. It was not found`,
+        );
         process.exit(1);
       }
 
@@ -420,9 +435,17 @@ const output = async (
       baseProfileToExtendUpon = newBase['--extend'];
     }
 
-    const profileFlatExtended = Object.assign({}, ...profilesToExtend, profileFlatDefault);
+    const profileFlatExtended = Object.assign(
+      {},
+      ...profilesToExtend,
+      profileFlatDefault,
+    );
 
-    const [profileFlatOverridden, locallyOverriddenVariables, excludedBlankVariables] = overrideFlatObj(profileFlatExtended, localOverrides, secretProps);
+    const [
+      profileFlatOverridden,
+      locallyOverriddenVariables,
+      excludedBlankVariables,
+    ] = overrideFlatObj(profileFlatExtended, localOverrides, secretProps);
 
     formatOutput(
       profileFlatOverridden,
@@ -430,7 +453,7 @@ const output = async (
       excludedBlankVariables,
       secretProps.fileNameBase,
       profile,
-      secretProps
+      secretProps,
     );
   });
 

@@ -1,13 +1,15 @@
-import { read, whoami, type ListAccount, validateCli } from "@1password/op-js";
-import { TOOL_VERSION } from "./pkgInfo";
-import verGreaterOrEqual from "./verGte";
+import { read, whoami, type ListAccount, validateCli } from '@1password/op-js';
+import { TOOL_VERSION } from './pkgInfo';
+import verGreaterOrEqual from './verGte';
 
-export const getOpAuth = async (verbose = false): Promise<ListAccount | null> => {
+export const getOpAuth = async (
+  verbose = false,
+): Promise<ListAccount | null> => {
   const sessionData = async () => {
     console.log('[INFO] Trying to log in to 1password...');
     const proc = Bun.spawn(['op', 'signin'], {
-      stdin: "inherit", // Inherit stdin from the parent process
-      stdout: "pipe",   // Capture the output
+      stdin: 'inherit', // Inherit stdin from the parent process
+      stdout: 'pipe', // Capture the output
     });
 
     // Wait for the process to exit and capture the output
@@ -15,11 +17,13 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     const envVariableExport = output.split('#')[0].trim();
 
     const matchResult = envVariableExport.match(/export (\w+)="(.+?)"/);
-    const [_, variableName = undefined, variableValue = undefined] = matchResult || [undefined, undefined];
+    const [_, variableName = undefined, variableValue = undefined] =
+      matchResult || [undefined, undefined];
     return [variableName, variableValue];
   };
 
-  const getApprovedVersion = () => read.parse('op://Employee/SECRET_TOOL/version');
+  const getApprovedVersion = () =>
+    read.parse('op://Employee/SECRET_TOOL/version');
 
   const setSession = async () => {
     const [sessName, sessVal] = await sessionData();
@@ -40,8 +44,8 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
   }
 
   if (opProps === null) {
-    validateCli().catch((error) => {
-      console.log("[ERROR] CLI is not valid:", error.message);
+    validateCli().catch(error => {
+      console.log('[ERROR] CLI is not valid:', error.message);
     });
 
     return getOpAuth(verbose);
@@ -49,10 +53,20 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
     if (verbose) console.log('[INFO] 1password login confirmed');
 
     // TODO: compare current version with approved version and throw exception (?) if necessary
-    /*if (verbose) */console.log('[INFO] Approved secret_tool version:', approvedVersion);
+    /*if (verbose) */ console.log(
+      '[INFO] Approved secret_tool version:',
+      approvedVersion,
+    );
     // console.log('[INFO] Installed secret_tool version:', version);
-    if (approvedVersion !== 'latest' && !verGreaterOrEqual(approvedVersion, TOOL_VERSION)) {
-      console.log('[WARN] You need to approve version', TOOL_VERSION, 'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)');
+    if (
+      approvedVersion !== 'latest' &&
+      !verGreaterOrEqual(approvedVersion, TOOL_VERSION)
+    ) {
+      console.log(
+        '[WARN] You need to approve version',
+        TOOL_VERSION,
+        'of secret_tool in 1password to continue (https://github.com/netMedi/Holvikaari/blob/master/docs/holvikaari-dev-overview.md#installation)',
+      );
       let xyn: string | null = '';
       while (xyn === '') {
         console.log();
@@ -71,7 +85,9 @@ export const getOpAuth = async (verbose = false): Promise<ListAccount | null> =>
           default:
             if (xyn === null || 'x'.indexOf(xyn) === 0) process.exit(0);
             else {
-              console.log('[ Please answer "y", "n", or "x" (single letter, no quotes) ]');
+              console.log(
+                '[ Please answer "y", "n", or "x" (single letter, no quotes) ]',
+              );
               xyn = '';
             }
         }

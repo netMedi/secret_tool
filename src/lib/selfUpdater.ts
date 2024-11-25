@@ -1,6 +1,10 @@
-import { $ } from "bun";
-import { existsSync } from "fs";
-import { NETMEDI_MONOREPO_HOME, SECRET_TOOL_DIR_SRC, SECRET_TOOL_GIT_REPO } from './defaults';
+import { $ } from 'bun';
+import { existsSync } from 'fs';
+import {
+  NETMEDI_MONOREPO_HOME,
+  SECRET_TOOL_DIR_SRC,
+  SECRET_TOOL_GIT_REPO,
+} from './defaults';
 
 const selfUpdate = async (install = true) => {
   if (existsSync(SECRET_TOOL_DIR_SRC)) {
@@ -9,7 +13,9 @@ const selfUpdate = async (install = true) => {
   }
 
   console.log("[INFO] Unable to find the secret_tool's source directory");
-  console.log("[INFO] Cloning to the default secret_tool's source repository...");
+  console.log(
+    "[INFO] Cloning to the default secret_tool's source repository...",
+  );
   console.log('[', SECRET_TOOL_DIR_SRC, ']');
   await $`mkdir -p ${NETMEDI_MONOREPO_HOME}/secret_tool; git clone ${SECRET_TOOL_GIT_REPO} ${NETMEDI_MONOREPO_HOME}/secret_tool`;
   selfUpdate(install);

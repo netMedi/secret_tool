@@ -3,7 +3,9 @@
   "version": "2.5.1",
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
-    "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh"
+    "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh",
+    "prepare": "husky",
+    "prettify": "bunx prettier ./src -w"
   },
   "type": "module",
   "dependencies": {
@@ -13,6 +15,12 @@
   },
   "devDependencies": {
     "@types/bun": "^1.1.13",
-    "@types/js-yaml": "^4.0.9"
+    "@types/js-yaml": "^4.0.9",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"
   }
 }

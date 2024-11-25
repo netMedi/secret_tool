@@ -9,7 +9,7 @@ const dumpFileHeaders = (
   mapPath: string,
   profileName: string,
   locallyOverriddenVariables: string[],
-  excludedBlankVariables: string[]
+  excludedBlankVariables: string[],
 ) => {
   const headers: EnvMap = {
     '# Content type': 'enviroment variables and secrets',

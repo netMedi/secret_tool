@@ -1,20 +1,20 @@
 #!/usr/bin/env bun
 
-import { $ } from "bun";
-import { hostname, userInfo } from "os";
+import { $ } from 'bun';
+import { hostname, userInfo } from 'os';
 
 declare const BUN_VERSION: string;
 declare const COMPILE_TIME_DATE: string;
 declare const COMPILE_TIME_DIR_SRC: string;
 
 import { SECRET_TOOL_DIR_SRC } from './lib/defaults';
-import { TOOL_VERSION } from "./lib/pkgInfo";
-import output from "./lib/dumper";
-import selfInstall from "./lib/selfInstaller";
-import selfTest from "./lib/selfTester";
-import selfUpdate from "./lib/selfUpdater";
+import { TOOL_VERSION } from './lib/pkgInfo';
+import output from './lib/dumper';
+import selfInstall from './lib/selfInstaller';
+import selfTest from './lib/selfTester';
+import selfUpdate from './lib/selfUpdater';
 
-const srcRun = process.execPath.split('/').pop() === "bun";
+const srcRun = process.execPath.split('/').pop() === 'bun';
 const secretToolPath = srcRun ? Bun.argv[1] : process.execPath;
 const SECRET_TOOL = process.env.SECRET_TOOL || secretToolPath.split('/').pop();
 const helpText = `
@@ -45,20 +45,27 @@ const helpText = `
 const displayHelp = () => console.log(helpText.slice(1, -1));
 const displayVersion = () => {
   console.log(
-    '  Version number   :', TOOL_VERSION,
-    '\n  Executable path  :', secretToolPath
+    '  Version number   :',
+    TOOL_VERSION,
+    '\n  Executable path  :',
+    secretToolPath,
   );
   if (srcRun) {
-    console.log('  This is a source run without installation. Use `--install` to install.');
+    console.log(
+      '  This is a source run without installation. Use `--install` to install.',
+    );
   } else {
     console.log(
-      '  Compilation dir  :', COMPILE_TIME_DIR_SRC,
-      '\n  Compilation date :', COMPILE_TIME_DATE,
-      '\n  Compiler version : Bun', BUN_VERSION
+      '  Compilation dir  :',
+      COMPILE_TIME_DIR_SRC,
+      '\n  Compilation date :',
+      COMPILE_TIME_DATE,
+      '\n  Compiler version : Bun',
+      BUN_VERSION,
     );
   }
   console.log('  Context user     :', `${userInfo().username}@${hostname()}`);
-}
+};
 
 const main = async () => {
   const cliArguments = Bun.argv.slice(2);
@@ -74,7 +81,9 @@ const main = async () => {
     process.exit(0);
   }
   if (cliArguments.includes('--install')) {
-    const noConfirm = ['-y', '--yes', '--no-confirm'].some(arg => cliArguments.includes(arg));
+    const noConfirm = ['-y', '--yes', '--no-confirm'].some(arg =>
+      cliArguments.includes(arg),
+    );
     await selfInstall(noConfirm);
     process.exit(0);
   }
@@ -106,8 +115,8 @@ const main = async () => {
       displayHelp();
       break;
     default:
-      // displayVersion();
-      // TODO: dump log and/or refer to exitCode in documentation
+    // displayVersion();
+    // TODO: dump log and/or refer to exitCode in documentation
   }
 };
 

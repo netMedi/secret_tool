@@ -4,7 +4,8 @@
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
     "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prettify": "bunx prettier ./src -w"
   },
   "type": "module",
   "dependencies": {

@@ -1,6 +1,9 @@
 import fs from 'fs';
 
-export const dateFromMTime = (mtime: Date, filenameFriendly = false): string => {
+export const dateFromMTime = (
+  mtime: Date,
+  filenameFriendly = false,
+): string => {
   const YYYY = String(mtime.getFullYear());
   const MM = String(mtime.getMonth() + 1).padStart(2, '0');
   const DD = String(mtime.getDate()).padStart(2, '0');
@@ -31,7 +34,10 @@ export const dateFromMTime = (mtime: Date, filenameFriendly = false): string => 
   return datetimeString(filenameFriendly);
 };
 
-const fsDateTimeModified = (fileName: string, filenameFriendly = false): string => {
+const fsDateTimeModified = (
+  fileName: string,
+  filenameFriendly = false,
+): string => {
   if (fs.existsSync(fileName)) {
     return dateFromMTime(fs.statSync(fileName).mtime, filenameFriendly);
   } else {

@@ -1,9 +1,9 @@
-import fsDateTimeModified from "./fsFileDataProvider";
+import fsDateTimeModified from './fsFileDataProvider';
 
 const gitDateTimeModified = (filePath: string): string => {
   const procGitDate = Bun.spawnSync(
     ['git', 'log', '-1', '--pretty=%cI', '--', filePath],
-    { stdout: 'pipe' }
+    { stdout: 'pipe' },
   );
   const gitDate = procGitDate.stdout.toString().trim();
 
@@ -14,7 +14,7 @@ const gitDateTimeModified = (filePath: string): string => {
 
   const procGitCommit = Bun.spawnSync(
     ['git', 'log', '-1', '--pretty=commit %H', '--', filePath],
-    { stdout: 'pipe' }
+    { stdout: 'pipe' },
   );
   const gitCommit = procGitCommit.stdout.toString().trim();
   return gitDate + ' ' + gitCommit;

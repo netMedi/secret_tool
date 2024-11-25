@@ -4,20 +4,27 @@ The tool to contextually handle environment variables and secrets in a secure wa
 
 ## Requirements
 
+<table><tbody><tr><th>TLDR:</th><td>
+  
+ Make sure [1password-cli](https://developer.1password.com/docs/cli/get-started/), [bun](https://bun.sh/) and [dotenvx](https://dotenvx.com/docs/install) are installed as SYSTEM packages.
+
+</td></tr></tbody></table>
+
 Hard:
 
-- dash / ash / bash - command shell
+- dash / ash / bash / zsh - command shell (present in the system by default, do not worry about this; dash, however, is the fastest and also POSIX compliant 😉)
 - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
-- bun - building the binary (make sure to **read the log output** after you install Bun, an additional step may be needed for zsh)
+- bun - building the binary (make sure to **read the log output** after you [install Bun](https://bun.sh/), an additional step may be needed for *zsh*, which is the default shell for MacOS and some Linux distros); on some Linux distros you may get away with compiling secret_tool via podman/docker [bun image](https://hub.docker.com/r/oven/bun), but MacOS does not seem to be one of those distros, so make sure [bun](https://bun.sh/) is installed.
 
 Soft:
 
 - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm **global install** !!!) - commands' wrapper
-- git - updates
+- git - updates (chances are you do have it installed already, but, if you are just starting, find [the official guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to proceed)
 
 References:
 
 - [Using 1password with netMedi projects](https://github.com/netMedi/Holvikaari/wiki/Secrets-handling-with-1password#installation-and-setup-of-the-1password-cli-op)
+- [Dash shell in Homebrew](https://formulae.brew.sh/formula/dash)
 
 ## 1password Vault variables
 

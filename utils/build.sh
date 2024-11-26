@@ -1,5 +1,34 @@
 #!/bin/sh
 # build secret_tool's binary
+
+FALLBACK=$(ps -p $$ -o comm=)
+
+[ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
+
+if [ -z "$BEST_CHOICE" ]; then
+	if [ "$SHELL_NAME" = "dash" ]; then
+		BEST_CHOICE=1
+	elif command -v dash >/dev/null 2>&1; then
+		SHELL_NAME="dash"
+	elif [ "$SHELL_NAME" = "ash" ]; then
+		:
+	elif command -v ash >/dev/null 2>&1; then
+		SHELL_NAME="ash"
+	elif [ "$POSIXLY_CORRECT" = "1" ]; then
+		BEST_CHOICE=1
+	fi
+
+	# restart script with a POSIX compliant shell
+	[ "$BEST_CHOICE" = "1" ] || {
+	  export POSIXLY_CORRECT=1
+  	export SHELL_NAME
+	  export BEST_CHOICE=1
+
+	  exec $SHELL_NAME "$0" "$@"
+	}
+fi
+# --- SHELLCHECK BELOW ---
+
 SECRET_TOOL_DIR_SRC=${SECRET_TOOL_DIR_SRC:-$(realpath .)}
 CONTAINER_TOOL=${CONTAINER_TOOL:-docker}
 CONTAINER_FILE_PERMISSIONS=${CONTAINER_FILE_PERMISSIONS:-ro}
@@ -22,13 +51,15 @@ if command -v bun > /dev/null 2>&1; then
   echo '  [INFO] Building with bun installed locally ...'
   sh -c "cd $SECRET_TOOL_DIR_SRC; $bun_builder_cmd" \
     || exit 1
-else
+elif [ "$CONTAINER_BUILD" = "1" ]; then
   echo "  [INFO] Building with bun from a ${CONTAINER_TOOL} container ..."
   $CONTAINER_TOOL run -h "${CONTAINER_TOOL}-bun-builder" -u ${USER} \
     --rm -v $SECRET_TOOL_DIR_SRC/:/$SECRET_TOOL_DIR_SRC/:$CONTAINER_FILE_PERMISSIONS \
     -w /$SECRET_TOOL_DIR_SRC/ oven/bun:alpine \
     sh -c "$bun_builder_cmd" \
       || exit 1
+else
+  echo '  [ERROR] bun could not be detected. If you just installed it, please, restart your shell (close terminal and open a fresh one) and try again.'
 fi
 
 if [ -f "$bin_out" ]; then

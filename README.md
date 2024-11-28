@@ -31,9 +31,9 @@ References:
 Save secret_tool's version number to personal (a.k.a. Employee) 1password vault as item named SECRET_TOOL:
 
 - New Item > Software License
-- Rename "Softwarw License" to "SECRET_TOOL" (this will be the name of a new entry)
-- (optionally) remove all firlds except of "version"
-- Set the value of "version" field (version of secret_tool you want to install; ex: "latest")
+- Rename "Software License" to "SECRET_TOOL" (this will be the name of a new entry)
+- (optionally) remove all fields except of "version"
+- Set the value of the "version" field (version of secret_tool you want to install; ex: "latest")
   (replace "latest" with "2.5.1", for example, if you want to stick to pinned releases)
 
 ## First time [install]

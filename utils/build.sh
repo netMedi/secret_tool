@@ -44,20 +44,20 @@ NODE_ENV=production
 # if -q argument is present, set QUIET=1
 [ "$1" = "-q" ] || [ "$1" = "--quiet" ] && QUIET=1
 
-bun_builder_cmd="bun install --production --frozen-lockfile &> /dev/null && \
+bun_builder_cmd="bun install && \
   bun build '$src_in' --compile --define 'COMPILE_TIME_DATE=\"$(date)\"' --define 'COMPILE_TIME_DIR_SRC=\"${SECRET_TOOL_DIR_SRC}\"' --define \"BUN_VERSION='\$(bun --version) (builder: ${USER}@\$(hostname))'\" --minify --sourcemap --outfile '$bin_out'"
 
-if command -v bun > /dev/null 2>&1; then
-  echo '  [INFO] Building with bun installed locally ...'
-  sh -c "cd $SECRET_TOOL_DIR_SRC; $bun_builder_cmd" \
-    || exit 1
-elif [ "$CONTAINER_BUILD" = "1" ]; then
+if [ "$CONTAINER_BUILD" = "1" ]; then
   echo "  [INFO] Building with bun from a ${CONTAINER_TOOL} container ..."
-  $CONTAINER_TOOL run -h "${CONTAINER_TOOL}-bun-builder" -u ${USER} \
+  $CONTAINER_TOOL run -h "${CONTAINER_TOOL}-bun-builder" \
     --rm -v $SECRET_TOOL_DIR_SRC/:/$SECRET_TOOL_DIR_SRC/:$CONTAINER_FILE_PERMISSIONS \
     -w /$SECRET_TOOL_DIR_SRC/ oven/bun:alpine \
     sh -c "$bun_builder_cmd" \
       || exit 1
+elif command -v bun > /dev/null 2>&1; then
+  echo '  [INFO] Building with bun installed locally ...'
+  sh -c "cd $SECRET_TOOL_DIR_SRC; $bun_builder_cmd" \
+    || exit 1
 else
   echo '  [ERROR] bun could not be detected. If you just installed it, please, restart your shell (close terminal and open a fresh one) and try again.'
 fi

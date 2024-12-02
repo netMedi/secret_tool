@@ -11,12 +11,17 @@ if [ "$SECRET_TOOL_EXE" = "secret_tool" ] && [ -z "$(command -v secret_tool)" ];
 fi
 
 echo "Running secret_tool's self-tests [$SECRET_TOOL_EXE]..."
-echo
 
-export FILE_NAME_BASE="$SECRET_TOOL_DIR_SRC/tests/.env."
+FILE_NAME_BASE="$SECRET_TOOL_DIR_SRC/tests/.env."
+
 export SECRET_MAP="${SECRET_MAP:-$SECRET_TOOL_DIR_SRC/tests/secret_map.yml}"
 export SKIP_OP_MARKER="$SECRET_TOOL_DIR_SRC/tests/.env.SKIP_OP_MARKER"
 rm "$SKIP_OP_MARKER" 2> /dev/null
+
+if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
+  echo '[DEBUG] Skipping 1password tests'
+  touch "${FILE_NAME_BASE}SKIP_OP_MARKER"
+fi
 
 SKIP_OP_MARKER_WRITE=1 \
 TEST_VAR__LOCAL_OVERRIDE1=overridden \
@@ -24,27 +29,9 @@ TEST_VAR__LOCAL_OVERRIDE2='!!' \
   "$SECRET_TOOL_EXE" \
     all_tests pat
 
-if [ "$SKIP_OP_USE" = "1" ] || [ -f "$SKIP_OP_MARKER" ]; then
-  echo '[DEBUG] Skipping 1password tests'
-fi
-export SKIP_OP_USE=1 # this is to skip OP use in following tests only
-
-FORMAT=json \
-TEST_VAR__LOCAL_OVERRIDE1=overridden \
-TEST_VAR__LOCAL_OVERRIDE2='!!' \
-  "$SECRET_TOOL_EXE" \
-    all_tests
-
-FORMAT=yml \
-TEST_VAR__LOCAL_OVERRIDE1=overridden \
-TEST_VAR__LOCAL_OVERRIDE2='!!' \
-  "$SECRET_TOOL_EXE" \
-    all_tests
-
-export SKIP_HEADERS_USE=1
-FORMAT=envfile "$SECRET_TOOL_EXE" configmap
-FORMAT=json "$SECRET_TOOL_EXE" configmap
-FORMAT=yml "$SECRET_TOOL_EXE" configmap
+export SKIP_OP_USE=1
+SKIP_HEADERS_USE=1 $SECRET_TOOL_EXE \
+  configmap configmap__as_json configmap__as_yaml
 
 # --- beginning of tests ---
 

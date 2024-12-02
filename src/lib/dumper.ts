@@ -3,7 +3,17 @@ import { resolve } from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
 
-import { FORMAT, SECRET_MAP } from './defaults';
+import {
+  DEFAULT_DEBUG,
+  DEFAULT_EXCLUDE_EMPTY_STRINGS,
+  DEFAULT_FORMAT,
+  DEFAULT_LIVE_DANGEROUSLY,
+  DEFAULT_SECRET_MAP,
+  DEFAULT_SKIP_HEADERS_USE,
+  DEFAULT_SKIP_OP_MARKER_WRITE,
+  DEFAULT_SKIP_OP_MARKER,
+  DEFAULT_SKIP_OP_USE,
+} from './defaults';
 import { TOOL_VERSION } from './pkgInfo';
 
 import dumpFileHeaders from './headerDataProvider';
@@ -16,8 +26,8 @@ import verGreaterOrEqual from './verGte';
 
 const castStringArr = (value: string | undefined): string[] =>
   value ? value.split(' ') : [];
-const castBool = (value: string | undefined, defaultValue = false): boolean =>
-  value ? Boolean(JSON.parse(String(value))) : defaultValue;
+const castBool = (value: string | undefined, defaultValue = '0'): boolean =>
+  Boolean(JSON.parse(String(value || defaultValue)));
 
 const flattenObj = (inputObj: EnvMap) => {
   // flatten nested arrays by adding index to key using double underscore as delimiter
@@ -214,26 +224,32 @@ const formatOutput = (
   secretProfile: EnvMap,
   locallyOverriddenVariables: string[],
   excludedBlankVariables: string[],
-  fileNameBaseRaw: string,
-  profileRaw: string,
+  profile: string,
   secretProps: SecretProps,
 ) => {
-  let [profile, fileNameBase] = [profileRaw, fileNameBaseRaw];
-  if (profileRaw.indexOf('/') !== -1) {
-    let pathBits = profileRaw.split('/');
+  let pathBits: string[];
+
+  if (profile.indexOf('/') !== -1) {
+    pathBits = profile.split('/');
     profile = pathBits.pop() as string;
-    fileNameBase = (
-      pathBits.join('/') +
-      '/' +
-      (secretProps.fileNameBase || '')
-    ).replaceAll('//', '/'); // cosmetics: replace // with /
+  } else {
+    pathBits = [];
   }
 
-  const { format, liveDangerously, secretMapPaths, skipHeadersUse } =
-    secretProps;
+  let outputPrefix = secretProfile['--PREFIX'];
+  pathBits.push(outputPrefix);
+  outputPrefix = pathBits.join('/').replaceAll('//', '/'); // cosmetics: replace // with /
 
-  const formatId = (secretProfile['--FORMAT'] || format)[0].toLowerCase();
+  const outputPostfix = secretProfile['--POSTFIX'] || '';
+
+  const { liveDangerously, secretMapPaths, skipHeadersUse } = secretProps;
+
+  const formatId = (secretProfile['--FORMAT'] ||
+    DEFAULT_FORMAT)[0].toLowerCase();
   const skipBackups = liveDangerously;
+
+  const profileName = secretProfile['--NAME'] || profile;
+  let path: string;
 
   let extension = '';
   switch (formatId) {
@@ -243,14 +259,15 @@ const formatOutput = (
     case 'y':
       extension = '.yml';
       break;
+    // default: // 'e' - no extension (envfile)
   }
 
-  let path = fileNameBase;
-  if (!!!path) {
-    path = './.env.';
-  }
+  path = outputPrefix || '';
+  // if (!!!path) {
+  //   path = './.env.';
+  // }
   if (path !== '--') {
-    path = resolve(path + profile + extension);
+    path = resolve(path + profileName + outputPostfix + extension);
   }
 
   const headers = skipHeadersUse
@@ -258,7 +275,7 @@ const formatOutput = (
     : dumpFileHeaders(
         path,
         secretMapPaths,
-        profile,
+        profileName,
         locallyOverriddenVariables,
         excludedBlankVariables,
       );
@@ -269,7 +286,7 @@ const formatOutput = (
         return jsonFileContent({ '//': headers, ...secretProfile });
       case 'y':
         return yamlFileContent({ '//': headers, ...secretProfile });
-      default:
+      default: // 'e'
         const cleanHeaders: string[] = [];
         yaml
           .dump(headers, { flowLevel: 1 })
@@ -296,21 +313,42 @@ const formatOutput = (
 };
 
 const output = async (localOverrides: EnvMap, cliArguments: string[]) => {
+  // workaround to get shell overrides correctly and avoid reuse of cached values
+  const envVars = JSON.stringify(process.env);
+  const {
+    SECRET_MAP,
+    EXCLUDE_EMPTY_STRINGS,
+    EXTRACT,
+    SKIP_HEADERS_USE,
+    SKIP_OP_USE,
+    SKIP_OP_MARKER,
+    SKIP_OP_MARKER_WRITE,
+    LIVE_DANGEROUSLY,
+    DEBUG,
+    ..._ // discard the rest
+  } = JSON.parse(envVars);
+
   const secretProps = {
-    secretMapPaths: process.env.SECRET_MAP || SECRET_MAP,
-    format: process.env.FORMAT || FORMAT,
+    secretMapPaths: SECRET_MAP || DEFAULT_SECRET_MAP,
 
-    excludeEmptyStrings: castBool(process.env.EXCLUDE_EMPTY_STRINGS, true),
-    fileNameBase: process.env.FILE_NAME_BASE,
-    filePostfix: process.env.FILE_POSTFIX,
-    extract: castStringArr(process.env.EXTRACT),
-    skipHeadersUse: castBool(process.env.SKIP_HEADERS_USE),
-    skipOpUse: castBool(process.env.SKIP_OP_USE),
+    excludeEmptyStrings: castBool(
+      EXCLUDE_EMPTY_STRINGS,
+      DEFAULT_EXCLUDE_EMPTY_STRINGS,
+    ),
 
-    skipOpMarker: process.env.SKIP_OP_MARKER,
-    skipOpMarkerWrite: castBool(process.env.SKIP_OP_MARKER_WRITE),
+    extract: castStringArr(EXTRACT),
+    skipHeadersUse: castBool(SKIP_HEADERS_USE, DEFAULT_SKIP_HEADERS_USE),
+    skipOpUse: castBool(SKIP_OP_USE, DEFAULT_SKIP_OP_USE),
 
-    liveDangerously: castBool(process.env.LIVE_DANGEROUSLY),
+    skipOpMarker: SKIP_OP_MARKER || DEFAULT_SKIP_OP_MARKER,
+    skipOpMarkerWrite: castBool(
+      SKIP_OP_MARKER_WRITE || DEFAULT_SKIP_OP_MARKER_WRITE,
+    ),
+
+    liveDangerously: castBool(LIVE_DANGEROUSLY || DEFAULT_LIVE_DANGEROUSLY),
+
+    debug: castBool(DEBUG || DEFAULT_DEBUG),
+
     metaData: {},
   } as SecretProps;
 
@@ -385,6 +423,7 @@ const output = async (localOverrides: EnvMap, cliArguments: string[]) => {
   const profilesReq = cliArguments.includes('--all')
     ? profilesAll
     : [...secretProps.extract, ...cliArguments];
+  secretProps.extract = profilesReq;
 
   if (profilesReq.length === 0) {
     return 1;
@@ -403,6 +442,8 @@ const output = async (localOverrides: EnvMap, cliArguments: string[]) => {
       fs.writeFileSync(secretProps.skipOpMarker, '', { encoding: 'utf8' });
     }
   }
+
+  if (secretProps.debug) console.debug(secretProps);
 
   profilesReq.forEach(profile => {
     if (!profilesAll.includes(profile)) {
@@ -451,7 +492,6 @@ const output = async (localOverrides: EnvMap, cliArguments: string[]) => {
       profileFlatOverridden,
       locallyOverriddenVariables,
       excludedBlankVariables,
-      secretProps.fileNameBase,
       profile,
       secretProps,
     );

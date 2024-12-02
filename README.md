@@ -5,18 +5,18 @@ The tool to contextually handle environment variables and secrets in a secure wa
 ## Requirements
 
 <table><tbody><tr><th>TLDR:</th><td>
-  
- Make sure [1password-cli](https://developer.1password.com/docs/cli/get-started/), [bun](https://bun.sh/) and [dotenvx](https://dotenvx.com/docs/install) are installed as SYSTEM packages.
+
+Make sure [1password-cli](https://developer.1password.com/docs/cli/get-started/), [bun](https://bun.sh/) and [dotenvx](https://dotenvx.com/docs/install) are installed as SYSTEM packages.
 
 </td></tr></tbody></table>
 
-Hard:
+### Hard
 
 - dash / ash / bash / zsh - command shell (present in the system by default, do not worry about this; dash, however, is the fastest and also POSIX compliant 😉)
 - [1password-cli](https://developer.1password.com/docs/cli/get-started/) - SECRETS' handling
-- bun - building the binary (make sure to **read the log output** after you [install Bun](https://bun.sh/), an additional step may be needed for *zsh*, which is the default shell for MacOS and some Linux distros); on some Linux distros you may get away with compiling secret_tool via podman/docker [bun image](https://hub.docker.com/r/oven/bun), but MacOS does not seem to be one of those distros, so make sure [bun](https://bun.sh/) is installed.
+- bun - building the binary (make sure to **read the log output** after you [install Bun](https://bun.sh/), an additional step may be needed for _zsh_, which is the default shell for MacOS and some Linux distros); on some Linux distros you may get away with compiling secret_tool via podman/docker [bun image](https://hub.docker.com/r/oven/bun), but MacOS does not seem to be one of those distros, so make sure [bun](https://bun.sh/) is installed.
 
-Soft:
+### Soft
 
 - [dotenvx](https://dotenvx.com/docs/install) (!!! dotenvx has several installation methods, be sure to perform an Npm **global install** !!!) - commands' wrapper
 - git - updates (chances are you do have it installed already, but, if you are just starting, find [the official guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) to proceed)
@@ -34,7 +34,7 @@ Save secret_tool's version number to personal (a.k.a. Employee) 1password vault 
 - Rename "Software License" to "SECRET_TOOL" (this will be the name of a new entry)
 - (optionally) remove all fields except of "version"
 - Set the value of the "version" field (version of secret_tool you want to install; ex: "latest")
-  (replace "latest" with "2.5.1", for example, if you want to stick to pinned releases)
+  (replace "latest" with "2.6.0", for example, if you want to stick to pinned releases)
 
 ## First time [install]
 
@@ -57,27 +57,26 @@ commands:
           name: Install secret_tool
           command: |
             if [ -z "$(command -v secret_tool)" ]; then
-            npm install -g bun 2> /dev/null || sudo npm install -g bun
+              npm install -g bun 2> /dev/null || sudo npm install -g bun
 
-            # VERSION=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
-            ## replace the above line with
-            VERSION=v2.5.1 # for a chosen tagged release (replace version number)
+              #VERSION=$(curl -sL https://api.github.com/repos/netMedi/secret_tool/releases/latest | jq -r ".tag_name")
+              VERSION=v2.6.0 # for a chosen tagged release (replace version number)
 
-            export SKIP_OP_USE=1
-            rm -rf /tmp/secret_tool 2> /dev/null || true
-            touch ~/.ssh/known_hosts 2> /dev/null || true
-            ssh-keyscan github.com >> ~/.ssh/known_hosts
-            git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
-            cd /tmp/secret_tool
-            git checkout $VERSION
-            bun install --production --frozen-lockfile 2> /dev/null || true
-            ./secret_utils.sh install
-            cd ~
+              export SKIP_OP_USE=1
+              rm -rf /tmp/secret_tool 2> /dev/null || true
+              touch ~/.ssh/known_hosts 2> /dev/null || true
+              ssh-keyscan github.com >> ~/.ssh/known_hosts
+              git clone git@github.com:netMedi/secret_tool.git /tmp/secret_tool
+              cd /tmp/secret_tool
+              git checkout $VERSION
+              bun install 2> /dev/null || true
+              ./secret_utils.sh install
+              cd ~
 
-            rm -rf /tmp/secret_tool
-          fi
-
-          secret_tool --version
+              rm -rf /tmp/secret_tool
+            else
+              secret_tool --version
+            fi
 
   # ... other commands ...
 ```
@@ -105,7 +104,7 @@ There are a couple of automated ways to update secret_tool.
 
 ```sh
   # install exact release tag of main branch
-  VERSION=v2.5.1 secret_tool --update
+  VERSION=v2.6.0 secret_tool --update
 ```
 
 3. The latest tag (stable)
@@ -143,7 +142,7 @@ Nesting is either done in yaml manner (by literal nesting) or using double under
 
 ```yaml
 ---
-tool_version: 2.5.1
+tool_version: 2.6.0
 profiles:
   my_C00L_profile:
     --format: yml # optional output format; envfile by default, yml or json
@@ -156,9 +155,9 @@ profiles:
 # ^ a totally valid map including a mixture of input formats
 ```
 
-If profile name contains slashes (`/`), it will be treated as output file path.
+If profile name contains slashes (`/`), it will be treated as output file path. Alternatively you can use `--prefix` property of a profile.
 
-### Where to place secret profiles
+### Where to place custom secret profiles
 
 Profiles for common use shall be placed into the `secret_map.yml` itself.
 
@@ -190,14 +189,14 @@ my_array:
 2. Use JSON array notation for YAML:
 
 ```yaml
-my_array: ["one", "two", "three"]
+my_array: ['one', 'two', 'three']
 ```
 
 3. Use a comma-separated string variable (parse later in the code):
    (this one is useful if code will work with raw value of env variable)
 
 ```yaml
-my_arrayish_string: "one,two,three"
+my_arrayish_string: 'one,two,three'
 ```
 
 4. [Special cases] array of quoted values
@@ -209,22 +208,9 @@ my_special_string: '"quoted value 1","quoted value 2","quoted value 3"'
 
 ## Ouput format (machine- or human-readable)
 
-secret_tool supports three output formats: `envfile` (default), `yml` and `json`. Those can be specified via a `FORMAT` env variable. Can be abbreviated down to one letter. Can be defined in a secret_map profile via `--format` attribute.
-
-Examples:
-
-```sh
-  # extract secrets into a JSON file (.env.dev.json)
-  FORMAT=json secret_tool dev
-
-  # extract secrets into a YAML file (./config/super_mega_test.yml)
-  FILE_NAME_BASE=./config/super_mega_ FORMAT=yml secret_tool test
-```
+secret_tool supports three output formats: `envfile` (default), `yml` and `json`, which is defined in each profile via a `--format` attribute. It can be abbreviated down to one letter.
 
 [!] Make sure to end `FILE_NAME_BASE` with a slash (`/`), if you want it to be a directory.
-[!] FORMAT is discarded if profile contains `--format` root level property (can be 'yml', 'json' or 'envfile').
-
-Format is case-insensitive. YAML can be written either as `YML` or `YAML`.
 
 By default any existing output file with the same name will get renamed into file postfixed with `.YYYY-MM-DD_hh-mm-ss.bak`. This sort of backup can be skipped by setting `LIVE_DANGEROUSLY=1`.
 
@@ -273,16 +259,26 @@ Secret map profiles support inheritance. You do not have to redeclare repeating 
 ```yaml
 # ...
 
+# dev profile, will output to own path
 dev:
   var1: 1
-  var2: "b"
-  var3: "c"
+  var2: b
+  var3: c
 
+# will extend dev and output to dev-extended path
 dev-extended:
   --extend: dev
-  var3: "new value"
-  var4: "new variable"
+  var3: new value
+  var4: new variable
+
+# will extend dev and output to dev (ovewriting default dev output file)
+dev-overridden:
+  --extend: dev
+  --name: dev
+  var1: 11
 ```
+
+[Note] `--prefix`, `--name` and `--postfix` are customisation values allowing you to tweak output file path. Otherwise those are calculated from profile name. This is especially useful for custom override profiles that are intended to write at the same path as their integral profile.
 
 [Note] While YAML natively supports overriding fields by using anchors `&name` and `<<: *name` notation, this would replace the whole block, so `--extend` field provides a more flexible approach when merging is desired.
 

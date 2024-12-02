@@ -1,7 +1,7 @@
 #!/bin/sh
 # build secret_tool's binary
 
-FALLBACK=$(ps -p $$ -o comm=)
+FALLBACK=$(ps -p $$ -o comm= 2> /dev/null)
 
 [ -z "SHELL_NAME" ] && SHELL_NAME=$([ -f "/proc/$$/exe" ] && basename "$(readlink -f /proc/$$/exe)" || echo "$FALLBACK")
 

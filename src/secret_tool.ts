@@ -100,7 +100,10 @@ const main = async () => {
     process.exit(0);
   }
 
-  if (cliArguments.includes('--help') || cliArguments.length === 0) {
+  if (
+    cliArguments.includes('--help') ||
+    (cliArguments.length === 0 && process.env.EXTRACT === '')
+  ) {
     displayHelp();
     // console.log();
     // displayVersion();

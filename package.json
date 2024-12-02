@@ -1,6 +1,6 @@
 {
   "name": "secret_tool",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "scripts": {
     "src_run": "SECRET_TOOL='bun src_run' ./src/secret_tool.ts",
     "utils": "SECRET_UTILS='bun utils' ./secret_utils.sh",
@@ -14,11 +14,11 @@
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.13",
+    "@types/bun": "^1.1.14",
     "@types/js-yaml": "^4.0.9",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.10",
-    "prettier": "^3.3.3"
+    "prettier": "^3.4.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"

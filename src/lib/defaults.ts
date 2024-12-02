@@ -24,5 +24,13 @@ try {
 
 export const SECRET_TOOL_GIT_REPO = 'git@github.com:netMedi/secret_tool.git';
 
-export const SECRET_MAP = './secret_map.yml ./secret_map.yml.d/*.yml';
-export const FORMAT = 'e'; // e: envfile, j: json, y: yaml
+export const DEFAULT_FORMAT = 'e'; // e: envfile, j: json, y: yaml
+
+export const DEFAULT_DEBUG = '0'; // 1: true, 0: false
+export const DEFAULT_EXCLUDE_EMPTY_STRINGS = '1'; // 1: true, 0: false
+export const DEFAULT_LIVE_DANGEROUSLY = '0'; // 1: true, 0: false
+export const DEFAULT_SECRET_MAP = './secret_map.yml ./secret_map.yml.d/*.yml';
+export const DEFAULT_SKIP_HEADERS_USE = '0'; // 1: true, 0: false
+export const DEFAULT_SKIP_OP_MARKER = ''; // define to check file presence for skipping OP
+export const DEFAULT_SKIP_OP_MARKER_WRITE = '0'; // 1: true, 0: false
+export const DEFAULT_SKIP_OP_USE = '0'; // 1: true, 0: false

@@ -2,11 +2,8 @@ export type EnvMap = { [key: string]: any };
 
 export type SecretProps = {
   secretMapPaths: string;
-  format: string;
 
   excludeEmptyStrings: boolean;
-  fileNameBase: string;
-  filePostfix: string;
   extract: string[];
   skipHeadersUse: boolean;
   skipOpUse: boolean;
@@ -18,4 +15,6 @@ export type SecretProps = {
   // skip backup creation if true
   liveDangerously: boolean;
   metaData: { [key: string]: string };
+
+  debug: boolean;
 };

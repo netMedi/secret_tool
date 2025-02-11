@@ -3,3 +3,6 @@ telemetry = false
 
 [run]
 silent = true
+
+[install]
+saveTextLockfile = true

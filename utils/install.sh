@@ -55,7 +55,7 @@ if [ "$SKIP_OP_USE" = "0" ]; then
       echo "Do you approve version \"$CURRENT_TOOL_VERSION\"?"
       echo "  X (or Enter) - no, just exit"
       echo "  y = yes, approve version \"$CURRENT_TOOL_VERSION\""
-      echo "  z = yes, approve latest version"
+      echo "  z = yes, always approve the latest version"
       read -r xyz
       case "$xyz" in
         [Yy]* )

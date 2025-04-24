@@ -320,7 +320,7 @@ profiles:
     --extend: dev
     SITE: staging-miracle
   config/secrets/staging-miracle:
-    --extends: config/secrets/dummy
+    --extend: config/secrets/dummy
 ```
 
 3. Prepare the profile(s):

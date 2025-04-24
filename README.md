@@ -333,11 +333,13 @@ secret_tool staging-miracle config/secrets/staging-miracle
 
 Now you have one new PROFILE [`staging-miracle`] and one new SECRET_PROFILE [`staging-miracle`]. Usually they go together and you do not need to specify SECRET_PROFILE explicitly, but you can. For example, if you want different keycloak endpoint.
 
-4. Initiate the databases and seed the
+4. Initiate the databases and seed the data if necessary
 
 ```sh
 export PROFILE=staging-miracle
 yarn s:db:setup
+
+yarn s:content:import # there should be a gitignored file ./lib/data/lists/staging-miracle.yml and conditional load based on env ideally, but we are just used to editing ci.yml for some reason
 yarn s:db:mass_populate
 ```
 

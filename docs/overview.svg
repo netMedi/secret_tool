@@ -1,0 +1,115 @@
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+<style>
+.box { fill: #f0f0f0; stroke: #333; stroke-width: 2; }
+.arrow { stroke: #666; stroke-width: 2; marker-end: url(#arrowhead); }
+text { font-family: Arial, sans-serif; font-size: 14px; }
+.bold { font-weight: bold; }
+.dir { fill: #e6e6e6; }
+.file { fill: #ffffff; }
+.caption-box { fill: #e6e6e6; stroke: #999; stroke-width: 1; rx: 5; ry: 5; }
+.caption { font-style: italic; font-size: 13px; }
+.cloud { fill: #f0f0f0; stroke: #333; stroke-width: 2; }
+.stage { fill: #f0f0f0; stroke: #333; stroke-width: 2; }
+</style>
+<defs>
+<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+</marker>
+</defs>
+
+    <!-- Project directory with secret maps - as a folder -->
+    <path class="stage" d="M20,40 h70 l10,10 h170 v290 h-250 v-300 z"/>
+    <text x="145" y="70" text-anchor="middle">some netMedi project</text>
+
+    <!-- Caption for first state -->
+    <rect class="caption-box" x="20" y="360" width="250" height="25"/>
+    <text x="145" y="377" text-anchor="middle" class="caption">1) project has been cloned from git</text>
+
+    <!-- Directory contents -->
+    <rect class="dir" x="40" y="80" width="210" height="20"/>
+    <text x="55" y="94">dir1/</text>
+
+    <rect class="dir" x="40" y="105" width="210" height="20"/>
+    <text x="55" y="119">dir2/</text>
+
+    <rect class="dir" x="40" y="130" width="210" height="20"/>
+    <text x="55" y="144">dir3/</text>
+
+    <rect class="file" x="40" y="155" width="210" height="20"/>
+    <text x="55" y="169">file1</text>
+
+    <rect class="file" x="40" y="180" width="210" height="20"/>
+    <text x="55" y="194">file2</text>
+
+    <!-- secret_map.yml -->
+    <rect class="file" x="40" y="205" width="210" height="20"/>
+    <text x="55" y="219" class="bold">secret_map.yml</text>
+
+    <!-- secret_map.yml.d -->
+    <rect class="dir" x="40" y="230" width="210" height="20"/>
+    <text x="55" y="244">secret_map.yml.d/</text>
+
+    <!-- Profile files -->
+    <rect class="file" x="60" y="255" width="190" height="20"/>
+    <text x="75" y="269" class="bold">profile1.yml</text>
+
+    <rect class="file" x="60" y="280" width="190" height="20"/>
+    <text x="75" y="294" class="bold">profile2.yml</text>
+
+    <rect class="file" x="60" y="305" width="190" height="20"/>
+    <text x="75" y="319" class="bold">profile3.yml</text>
+
+    <text x="145" y="334" text-anchor="middle">...</text>
+
+    <!-- 1Password cloud shape in the center -->
+    <!-- 1Password cloud shape in the center -->
+    <path class="cloud" d="M300,140
+        c-11,0-20-9-20-20 c0-5,2-9.4,5.2-12.8 c-0.8-2.6-1.2-5.4-1.2-8.4
+        c0-16.6,13.4-30,30-30 c1.4,0,2.8,0.2,4.2,0.4 c4.8-11.4,16-19.4,29-19.4
+        c17.4,0,31.6,14.2,31.6,31.6 c0,2.2-0.2,4.4-0.6,6.4 c12.2,2.4,21.4,13.2,21.4,26.2
+        c0,14.8-12,26.8-26.8,26.8 H300z" transform="translate(-40,45) scale(1.3)"/>
+    <text x="400" y="186" text-anchor="middle">1Password</text>
+    <text x="400" y="206" text-anchor="middle">(employee vault)</text>
+
+    <!-- Caption under cloud -->
+    <rect class="caption-box" x="300" y="250" width="200" height="25"/>
+    <text x="400" y="267" text-anchor="middle" class="caption">2) secret_tool extracts secrets</text>
+
+    <!-- Project directory with env files - as a folder -->
+    <path class="stage" d="M530,40 h70 l10,10 h170 v290 h-250 v-300 z"/>
+    <text x="655" y="70" text-anchor="middle">some netMedi project</text>
+
+    <!-- Caption for second state -->
+    <rect class="caption-box" x="530" y="360" width="250" height="25"/>
+    <text x="655" y="377" text-anchor="middle" class="caption">3) project has env files with secrets</text>
+
+    <!-- Directory contents with env files -->
+    <rect class="dir" x="550" y="80" width="210" height="20"/>
+    <text x="565" y="94">dir1/</text>
+
+    <rect class="dir" x="550" y="105" width="210" height="20"/>
+    <text x="565" y="119">dir2/</text>
+
+    <rect class="dir" x="550" y="130" width="210" height="20"/>
+    <text x="565" y="144">dir3/</text>
+
+    <rect class="file" x="550" y="155" width="210" height="20"/>
+    <text x="565" y="169" class="bold">.env.base</text>
+
+    <rect class="file" x="550" y="180" width="210" height="20"/>
+    <text x="565" y="194" class="bold">.env.dev</text>
+
+    <rect class="file" x="550" y="205" width="210" height="20"/>
+    <text x="565" y="219" class="bold">.env.default</text>
+
+    <rect class="file" x="550" y="230" width="210" height="20"/>
+    <text x="565" y="244" class="bold">.env.test</text>
+
+    <rect class="file" x="550" y="255" width="210" height="20"/>
+    <text x="565" y="269" class="bold">.env.dev-local-keycloak</text>
+
+    <text x="655" y="294" text-anchor="middle">...</text>
+
+    <!-- Single Arrow through the center -->
+    <line class="arrow" x1="270" y1="190" x2="530" y2="190"/>
+</svg>

@@ -2,6 +2,17 @@
 
 The tool to contextually handle environment variables and secrets in a secure way.
 
+![Architectural overview](./docs/overview.svg)
+
+The secret_tool translates entities from 1Password into `.env.*` files for local development flow. `secret_map.yml` (or a collection of files from `./secret_map.yml.d`) is used to structure the approach and, when needed, transform secret values into usable entities (from strings, since env files can only contain string values).
+
+## Flow
+
+1. Reads configuration from `secret_map.yml` or `secret_map.yml.d/*.yml`
+2. Fetches secrets from 1Password using configured mappings
+3. Transforms values if needed (using defined transformers)
+4. Writes resulting key-value pairs to specified `.env.*` files
+
 ## Requirements
 
 <table><tbody><tr><th>TLDR:</th><td>
@@ -290,3 +301,57 @@ You can run secret_tool without compiling it. Use `bun src_run` or `./secret_uti
 To start utils you can have two options: `bun utils` and `./secret_utils.sh`.
 
 After making changes verify shell scripts with shellcheck (`./.posix_verify.sh`) and TypeScript with linter (eslint).
+
+# Example of custom profile for a non-default environment
+
+_Using Holvikaari staging-miracle_
+
+0. Install secret_tool as per the above instructions.
+
+1. Open Holvikaari project directory
+   `cd ~/netMedi/Holvikaari/`
+
+2. Declare a custom profile at `./secret_map.yml.d/staging-miracle.yml`:
+
+```yaml
+---
+profiles:
+  staging-miracle:
+    --extend: dev
+    SITE: staging-miracle
+  config/secrets/staging-miracle:
+    --extend: config/secrets/dummy
+```
+
+3. Prepare the profile(s):
+
+```sh
+secret_tool staging-miracle config/secrets/staging-miracle
+```
+
+[!] If you declared profile(s) incorrectly, you will get a validation error.
+
+Now you have one new PROFILE [`staging-miracle`] and one new SECRET_PROFILE [`staging-miracle`]. Usually they go together and you do not need to specify SECRET_PROFILE explicitly, but you can. For example, if you want different keycloak endpoint.
+
+4. Initiate the databases and seed the data if necessary
+
+```sh
+export PROFILE=staging-miracle
+yarn s:db:setup
+
+yarn s:content:import # there should be a gitignored file ./lib/data/lists/staging-miracle.yml and conditional load based on env ideally, but we are just used to editing ci.yml for some reason
+yarn s:db:mass_populate
+```
+
+5. Start Holvikaari with a new profile:
+
+```sh
+PROFILE=staging-miracle yarn s:all:start
+
+# or separately backend and frontend if that is your preference
+export PROFILE=staging-miracle
+yarn s:backend:start
+yarn s:frontend:start
+```
+
+6. PROFIT!!1

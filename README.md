@@ -333,10 +333,12 @@ secret_tool staging-miracle config/secrets/staging-miracle
 
 Now you have one new PROFILE [`staging-miracle`] and one new SECRET_PROFILE [`staging-miracle`]. Usually they go together and you do not need to specify SECRET_PROFILE explicitly, but you can. For example, if you want different keycloak endpoint.
 
-4. Initiate the databases
+4. Initiate the databases and seed the
 
 ```sh
-PROFILE=staging-miracle yarn s:db:setup
+export PROFILE=staging-miracle
+yarn s:db:setup
+yarn s:db:mass_populate
 ```
 
 5. Start Holvikaari with a new profile:

@@ -2,6 +2,17 @@
 
 The tool to contextually handle environment variables and secrets in a secure way.
 
+![Architectural overview](./docs/overview.svg)
+
+The secret_tool translates entities from 1Password into `.env.*` files for local development flow. `secret_map.yml` (or a collection of files from `./secret_map.yml.d`) is used to structure the approach and, when needed, transform secret values into usable entities (from strings, since env files can only contain string values).
+
+## Flow
+
+1. Reads configuration from `secret_map.yml` or `secret_map.yml.d/*.yml`
+2. Fetches secrets from 1Password using configured mappings
+3. Transforms values if needed (using defined transformers)
+4. Writes resulting key-value pairs to specified `.env.*` files
+
 ## Requirements
 
 <table><tbody><tr><th>TLDR:</th><td>
